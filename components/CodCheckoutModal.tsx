@@ -185,7 +185,7 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
             </p>
             <p className="text-[11px] text-emerald-800 font-semibold">
               Cantidad: 1 Unidad
-              {selectedVariation ? ` • Opción: ${selectedVariation}` : ''}
+              {selectedVariation ? ` • ${selectedVariation}` : ''}
             </p>
           </div>
           <div className="text-right flex-shrink-0 ml-3">

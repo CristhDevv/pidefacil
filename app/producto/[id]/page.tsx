@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatCOP } from '@/config/pricing';
+import { getVariationLabel } from '@/lib/variations';
 import { CodCheckoutModal } from '@/components/CodCheckoutModal';
 import { OrderSuccessModal } from '@/components/OrderSuccessModal';
 import {
@@ -49,7 +50,7 @@ export default function ProductDetailPage() {
           if (json.data.variations && json.data.variations.length > 0) {
             const firstAvailable = json.data.variations.find((v: any) => v.stock === undefined || v.stock > 0);
             if (firstAvailable) {
-              setSelectedVariation(firstAvailable.title || firstAvailable.name || '');
+              setSelectedVariation(getVariationLabel(firstAvailable, 0));
             }
           }
         }
@@ -229,7 +230,7 @@ export default function ProductDetailPage() {
               {variations
                 .filter((v: any) => v.stock === undefined || v.stock > 0)
                 .map((v: any, index: number) => {
-                  const label = v.title || v.name || `Opción ${index + 1}`;
+                  const label = getVariationLabel(v, index);
                   const isSelected = selectedVariation === label;
                   return (
                     <button
