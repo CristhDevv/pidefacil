@@ -157,59 +157,55 @@ export function SocialKitDownloader({
         throw new Error(json.error || 'Error al generar los creativos con Google AI.');
       }
 
-      let img1 = json.data.angle1.imageDataUrl;
-      let img2 = json.data.angle2.imageDataUrl;
+      // Renderizar SIEMPRE con el motor Canvas publicitario senior para garantizar tipografía 3D dorada,
+      // fondo full-bleed de alta conversión y evitar servir imágenes en caché con diseño obsoleto.
+      setCurrentStep(3);
+      setStepLabel('🎨 Renderizando composición publicitaria de alta conversión (Google Flow)...');
+      const imageSrc = json.data.imageUrl || product.image_url || product.gallery?.[0] || '';
 
-      // Si no vienen pre-renderizados desde caché, renderizar en Canvas con fuentes y emojis nativos
-      if (!img1 || !img2) {
-        setCurrentStep(3);
-        setStepLabel('🎨 Renderizando marco tipográfico .900 en alta definición...');
-        const imageSrc = json.data.imageUrl || product.image_url || product.gallery?.[0] || '';
+      const img1 = await renderAiCreativeOnCanvas({
+        productName: json.data.productName || product.name,
+        imageUrl: imageSrc,
+        selectedOffer,
+        singlePriceCop: json.data.singlePriceCop || singlePrice,
+        duoPriceCop: json.data.duoPriceCop || duoPrice,
+        duoSavingsCop: json.data.duoSavingsCop || duoSavings,
+        selectedVariation,
+        angle: json.data.angle1,
+        sceneDataUrl: json.data.angle1.sceneDataUrl || null,
+      });
 
-        img1 = await renderAiCreativeOnCanvas({
-          productName: json.data.productName || product.name,
-          imageUrl: imageSrc,
-          selectedOffer,
-          singlePriceCop: json.data.singlePriceCop || singlePrice,
-          duoPriceCop: json.data.duoPriceCop || duoPrice,
-          duoSavingsCop: json.data.duoSavingsCop || duoSavings,
-          selectedVariation,
-          angle: json.data.angle1,
-          sceneDataUrl: json.data.angle1.sceneDataUrl || null,
-        });
+      const img2 = await renderAiCreativeOnCanvas({
+        productName: json.data.productName || product.name,
+        imageUrl: imageSrc,
+        selectedOffer,
+        singlePriceCop: json.data.singlePriceCop || singlePrice,
+        duoPriceCop: json.data.duoPriceCop || duoPrice,
+        duoSavingsCop: json.data.duoSavingsCop || duoSavings,
+        selectedVariation,
+        angle: json.data.angle2,
+        sceneDataUrl: json.data.angle2.sceneDataUrl || null,
+      });
 
-        img2 = await renderAiCreativeOnCanvas({
-          productName: json.data.productName || product.name,
-          imageUrl: imageSrc,
-          selectedOffer,
-          singlePriceCop: json.data.singlePriceCop || singlePrice,
-          duoPriceCop: json.data.duoPriceCop || duoPrice,
-          duoSavingsCop: json.data.duoSavingsCop || duoSavings,
-          selectedVariation,
-          angle: json.data.angle2,
-          sceneDataUrl: json.data.angle2.sceneDataUrl || null,
-        });
-
-        // Guardar imágenes nítidas en caché en segundo plano junto con las escenas
-        fetch('/api/ai/save-cache', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            productId: product.id_dropi,
-            comboType: selectedOffer,
-            angle1Title: json.data.angle1.title,
-            angle1Desc: json.data.angle1.subHeadline || json.data.angle1.description,
-            angle1Image: img1,
-            angle2Title: json.data.angle2.title,
-            angle2Desc: json.data.angle2.subHeadline || json.data.angle2.description,
-            angle2Image: img2,
-            scene1Data: json.data.angle1.sceneDataUrl || null,
-            scene2Data: json.data.angle2.sceneDataUrl || null,
-            copyText: json.data.persuasiveCopy,
-            previousAngles: json.data.previousAngles,
-          }),
-        }).catch(() => {});
-      }
+      // Guardar imágenes nítidas de alta conversión en caché en segundo plano
+      fetch('/api/ai/save-cache', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id_dropi,
+          comboType: selectedOffer,
+          angle1Title: json.data.angle1.title,
+          angle1Desc: json.data.angle1.subHeadline || json.data.angle1.description,
+          angle1Image: img1,
+          angle2Title: json.data.angle2.title,
+          angle2Desc: json.data.angle2.subHeadline || json.data.angle2.description,
+          angle2Image: img2,
+          scene1Data: json.data.angle1.sceneDataUrl || null,
+          scene2Data: json.data.angle2.sceneDataUrl || null,
+          copyText: json.data.persuasiveCopy,
+          previousAngles: json.data.previousAngles,
+        }),
+      }).catch(() => {});
 
       const hasAiScene1 = Boolean(json.data.angle1.sceneDataUrl);
       const hasAiScene2 = Boolean(json.data.angle2.sceneDataUrl);

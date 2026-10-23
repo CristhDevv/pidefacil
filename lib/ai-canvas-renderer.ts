@@ -25,12 +25,24 @@ export interface RenderCanvasOptions {
 
 // Carga y espera a que las fuentes de alto impacto publicitario estén listas
 async function ensureFontsReady() {
-  if (typeof document === 'undefined' || !document.fonts) return;
+  if (typeof document === 'undefined') return;
   try {
-    await Promise.all([
-      document.fonts.load('900 46px "Montserrat"'),
-      document.fonts.load('700 36px "Oswald"'),
-    ]);
+    if (!document.getElementById('pidefacil-creative-fonts')) {
+      const link = document.createElement('link');
+      link.id = 'pidefacil-creative-fonts';
+      link.rel = 'stylesheet';
+      link.href =
+        'https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,700;0,800;0,900;1,900&family=Oswald:wght@600;700&display=swap';
+      document.head.appendChild(link);
+    }
+    if (document.fonts) {
+      await document.fonts.ready;
+      await Promise.all([
+        document.fonts.load('900 48px "Montserrat"').catch(() => {}),
+        document.fonts.load('800 24px "Montserrat"').catch(() => {}),
+        document.fonts.load('700 36px "Oswald"').catch(() => {}),
+      ]);
+    }
   } catch {}
 }
 
@@ -53,6 +65,37 @@ function drawRoundedRect(
   ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
   ctx.lineTo(x, y + radius);
   ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+// Helper para dibujar la medalla dorada dentada (saw-tooth starburst seal de alta calidad)
+function drawSealStarburst(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  spikes: number,
+  outerR: number,
+  innerR: number
+) {
+  let rot = (Math.PI / 2) * 3;
+  let x = cx;
+  let y = cy;
+  const step = Math.PI / spikes;
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - outerR);
+  for (let i = 0; i < spikes; i++) {
+    x = cx + Math.cos(rot) * outerR;
+    y = cy + Math.sin(rot) * outerR;
+    ctx.lineTo(x, y);
+    rot += step;
+
+    x = cx + Math.cos(rot) * innerR;
+    y = cy + Math.sin(rot) * innerR;
+    ctx.lineTo(x, y);
+    rot += step;
+  }
+  ctx.lineTo(cx, cy - outerR);
   ctx.closePath();
 }
 
@@ -90,7 +133,7 @@ function wrapText(
   return lines;
 }
 
-// Cargar imagen de forma asíncrona mediante el proxy Anti-CORS (o directa si es data URL)
+// Cargar imagen mediante el proxy Anti-CORS (o directa si es data URL)
 function loadProxiedImage(rawUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -120,12 +163,12 @@ function loadProxiedImage(rawUrl: string): Promise<HTMLImageElement> {
 }
 
 /**
- * RENDERIZADOR CREATIVO PREMIUM (ESTÁNDAR GOOGLE FLOW / HIGH-CONVERTING COD AD)
- * - Fondo 100% full-bleed fotográfico (escena IA o desenfoque ambiental cinematográfico del producto)
- * - Titular con tipografía metálica dorada 3D de alto impacto ('Montserrat'/'Oswald')
- * - Pastilla brillante con beneficio / variante
- * - Tarjeta flotante de precios glassmorphic con acabado ámbar/oro
- * - Botón rojo de alta pulsación ('🛒 ¡PÍDELO AHORA! »') y badges de confianza COD
+ * RENDERIZADOR CREATIVO PUBLICITARIO SENIOR (DIRECTIVA DE ARTE Y CONVERSIÓN GOOGLE FLOW)
+ * 1. Fondo 100% full-bleed fotográfico inmersivo (recreación fotorrealista o desenfoque bokeh ambiental)
+ * 2. Titular superior impactante con tipografía limpia, destacada y dorada metálica 3D ('Montserrat' 900 / 'Oswald' 700)
+ * 3. NUNCA bloques negros ni recuadros planos que tapen la imagen
+ * 4. Bloque de valor/precio flotante con contraste sutil + Medalla de Alta Calidad ★★★★★
+ * 5. Barra inferior con botones redondeados de alta pulsación ('PAGO EN CASA', 'ENVÍO GRATIS', '🛒 ¡PÍDELO HOY!')
  */
 export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Promise<string> {
   await ensureFontsReady();
@@ -172,10 +215,10 @@ export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Pr
   } catch {}
 
   // =========================================================================
-  // CAPA 1: FONDO FOTOGRÁFICO FULL-BLEED (100% DEL LIENZO)
+  // PASO 1: REGENERACIÓN DE LA ESCENA (FONDO Y CONTEXTO 100% FULL-BLEED)
   // =========================================================================
   if (hasAiScene && sceneImg) {
-    // Si la IA generó una escena fotorrealista nueva, dibujarla a pantalla completa (cover)
+    // Escena fotorrealista generada por IA que cubre todo el lienzo de borde a borde
     const sAspect = sceneImg.width / sceneImg.height;
     let sDrawW = width;
     let sDrawH = height;
@@ -190,54 +233,53 @@ export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Pr
     }
     ctx.drawImage(sceneImg, sDrawX, sDrawY, sDrawW, sDrawH);
   } else if (productImg) {
-    // FALLBACK PROFESIONAL (ESTILO ESTUDIO CINEMATOGRÁFICO DE INTERIOR):
-    // Cero cajas blancas feas. El producto se integra en un fondo ambiental cálido con profundidad
+    // RECREACIÓN DE ENTORNO FOTOGRÁFICO PROFESIONAL:
+    // Cero recuadros planos. Fondo de ambiente lifestyle inmersivo con bokeh y viñeta
     ctx.save();
-    // 1. Fondo difuminado ambiental que toma los colores reales de la escena
     try {
-      ctx.filter = 'blur(35px) brightness(0.35) saturate(1.4)';
+      ctx.filter = 'blur(28px) brightness(0.42) saturate(1.4)';
     } catch {}
     ctx.drawImage(productImg, -40, -40, width + 80, height + 80);
     ctx.restore();
 
-    // 2. Viñeta ambiental oscura de lujo
+    // Viñeta ambiental cinematográfica sutil (deja ver el ambiente con calidez)
     const radialGrad = ctx.createRadialGradient(
       width / 2,
-      height / 2 - 40,
-      120,
+      height / 2 - 20,
+      140,
       width / 2,
       height / 2,
-      680
+      720
     );
-    radialGrad.addColorStop(0, 'rgba(15, 23, 42, 0.25)');
-    radialGrad.addColorStop(0.7, 'rgba(10, 15, 26, 0.75)');
-    radialGrad.addColorStop(1, 'rgba(5, 7, 15, 0.96)');
+    radialGrad.addColorStop(0, 'rgba(15, 23, 42, 0.12)');
+    radialGrad.addColorStop(0.7, 'rgba(10, 15, 26, 0.55)');
+    radialGrad.addColorStop(1, 'rgba(5, 7, 15, 0.90)');
     ctx.fillStyle = radialGrad;
     ctx.fillRect(0, 0, width, height);
 
-    // 3. Resplandor cálido de foco detrás del producto principal
+    // Resplandor cálido de luz de estudio proyectada detrás del producto
     const spotGrad = ctx.createRadialGradient(
       width / 2,
-      height / 2 - 30,
-      40,
+      height / 2 - 20,
+      50,
       width / 2,
-      height / 2 - 30,
-      380
+      height / 2 - 20,
+      420
     );
-    spotGrad.addColorStop(0, 'rgba(245, 158, 11, 0.20)');
+    spotGrad.addColorStop(0, 'rgba(245, 158, 11, 0.22)');
     spotGrad.addColorStop(0.6, 'rgba(234, 88, 12, 0.08)');
     spotGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = spotGrad;
-    ctx.fillRect(0, 160, width, 600);
+    ctx.fillRect(0, 140, width, 680);
 
-    // 4. Dibujar el producto físicamente grande, nítido y centrado en primer plano
+    // Producto principal destacado en primer plano con sombra natural proyectada
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-    ctx.shadowBlur = 40;
-    ctx.shadowOffsetY = 20;
+    ctx.shadowBlur = 36;
+    ctx.shadowOffsetY = 18;
 
-    const maxProdW = 760;
-    const maxProdH = 500;
+    const maxProdW = 820;
+    const maxProdH = 560;
     const pAspect = productImg.width / productImg.height;
 
     let pDrawW = maxProdW;
@@ -249,12 +291,11 @@ export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Pr
     }
 
     const pDrawX = (width - pDrawW) / 2;
-    const pDrawY = 220 + (maxProdH - pDrawH) / 2;
+    const pDrawY = 190 + (maxProdH - pDrawH) / 2;
 
     ctx.drawImage(productImg, pDrawX, pDrawY, pDrawW, pDrawH);
     ctx.restore();
   } else {
-    // Fondo fallback esmeralda ultra oscuro en caso de no haber ninguna foto
     const darkGrad = ctx.createLinearGradient(0, 0, 0, height);
     darkGrad.addColorStop(0, '#0F172A');
     darkGrad.addColorStop(1, '#020617');
@@ -263,70 +304,68 @@ export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Pr
   }
 
   // =========================================================================
-  // CAPA 2: VIÑETAS DEGRADADAS DE PROTECCIÓN PARA TIPOGRAFÍA
+  // PASO 2: VIÑETAS SUAVES DE GRADIENTE (SOLO PARA CONTRASTE TIPOGRÁFICO)
   // =========================================================================
-  // Degradado superior para legibilidad del título
-  const topGrad = ctx.createLinearGradient(0, 0, 0, 360);
-  topGrad.addColorStop(0, 'rgba(5, 7, 15, 0.92)');
-  topGrad.addColorStop(0.6, 'rgba(5, 7, 15, 0.60)');
+  // Degradado suave superior
+  const topGrad = ctx.createLinearGradient(0, 0, 0, 300);
+  topGrad.addColorStop(0, 'rgba(5, 7, 15, 0.88)');
+  topGrad.addColorStop(0.6, 'rgba(5, 7, 15, 0.40)');
   topGrad.addColorStop(1, 'rgba(5, 7, 15, 0.0)');
   ctx.fillStyle = topGrad;
-  ctx.fillRect(0, 0, width, 360);
+  ctx.fillRect(0, 0, width, 300);
 
-  // Degradado inferior para legibilidad de precios y botones
-  const btmGrad = ctx.createLinearGradient(0, 640, 0, height);
+  // Degradado suave inferior (permite que el producto y la escena se vean limpios)
+  const btmGrad = ctx.createLinearGradient(0, 720, 0, height);
   btmGrad.addColorStop(0, 'rgba(5, 7, 15, 0.0)');
-  btmGrad.addColorStop(0.35, 'rgba(5, 7, 15, 0.72)');
-  btmGrad.addColorStop(1, 'rgba(5, 7, 15, 0.98)');
+  btmGrad.addColorStop(0.5, 'rgba(5, 7, 15, 0.60)');
+  btmGrad.addColorStop(1, 'rgba(5, 7, 15, 0.94)');
   ctx.fillStyle = btmGrad;
-  ctx.fillRect(0, 640, width, height - 640);
+  ctx.fillRect(0, 720, width, height - 720);
 
   // =========================================================================
-  // CAPA 3: ENCABEZADO Y TITULAR METÁLICO DORADO 3D (ESTILO GOOGLE FLOW)
+  // PASO 3: TITULAR SUPERIOR IMPACTANTE CON TIPOGRAFÍA METÁLICA DORADA
   // =========================================================================
-  const headerX = 40;
+  const headerX = 44;
   const headerW = width - headerX * 2;
 
-  // Cintillo Superior Minimalista
+  // Mini insignia superior sutil
   ctx.save();
-  ctx.font = '900 16px "Montserrat", system-ui, sans-serif';
+  ctx.font = '900 14px "Montserrat", sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
   ctx.fillText('🇨🇴 PIDEFÁCIL.CO', headerX, 24);
 
   ctx.textAlign = 'right';
   ctx.fillStyle = '#FDE68A';
-  ctx.fillText('⚡ OFERTA CONTRA ENTREGA', headerX + headerW, 24);
+  ctx.fillText('⚡ PAGA EN CASA AL RECIBIR', headerX + headerW, 24);
   ctx.restore();
 
-  // Titular Principal Dorado Metálico 3D
+  // Titular de Impacto (Tipografía 3D Dorada Metálica)
   ctx.save();
-  ctx.font = '900 44px "Montserrat", "Oswald", Impact, sans-serif';
+  ctx.font = '900 46px "Montserrat", "Oswald", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   const rawTitle = (angle.hookHeadline || productName).toUpperCase();
-  const titleLines = wrapText(ctx, rawTitle, headerW - 60, 2);
-  const titleStartY = titleLines.length > 1 ? 82 : 94;
+  const titleLines = wrapText(ctx, rawTitle, headerW - 40, 2);
+  const titleStartY = titleLines.length > 1 ? 84 : 96;
 
   titleLines.forEach((line, idx) => {
-    const curY = titleStartY + idx * 48;
+    const curY = titleStartY + idx * 50;
 
-    // Gradiente metálico dorado idéntico a las mejores piezas de publicidad
-    const goldGrad = ctx.createLinearGradient(0, curY - 24, 0, curY + 24);
-    goldGrad.addColorStop(0.0, '#FFFBEB'); // Destello superior blanco marfil
-    goldGrad.addColorStop(0.25, '#FEF08A'); // Amarillo dorado claro
-    goldGrad.addColorStop(0.55, '#F59E0B'); // Oro cálido central
-    goldGrad.addColorStop(0.85, '#D97706'); // Ámbar metálico
-    goldGrad.addColorStop(1.0, '#92400E'); // Sombra bronce inferior
+    // Gradiente metálico dorado 3D (estilo Google Flow)
+    const goldGrad = ctx.createLinearGradient(0, curY - 25, 0, curY + 25);
+    goldGrad.addColorStop(0.0, '#FFFBEB');
+    goldGrad.addColorStop(0.25, '#FEF08A');
+    goldGrad.addColorStop(0.55, '#F59E0B');
+    goldGrad.addColorStop(0.85, '#D97706');
+    goldGrad.addColorStop(1.0, '#92400E');
 
-    // Sombra 3D profunda
     ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-    ctx.shadowBlur = 20;
+    ctx.shadowBlur = 22;
     ctx.shadowOffsetY = 6;
 
-    // Delineado sutil para resaltar sobre cualquier tipo de fondo
     ctx.strokeStyle = 'rgba(69, 26, 3, 0.85)';
     ctx.lineWidth = 3.5;
     ctx.strokeText(line, width / 2, curY);
@@ -336,21 +375,20 @@ export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Pr
   });
   ctx.restore();
 
-  // Pastilla Brillante de Subtítulo / Beneficio
-  const pillY = titleStartY + titleLines.length * 48 + 4;
-  const pillH = 42;
+  // Insignia / Pastilla redondeada de beneficio o variante
+  const pillY = titleStartY + titleLines.length * 50 + 6;
+  const pillH = 38;
   const pillText = (selectedVariation && selectedVariation.trim() !== '')
     ? `✨ ${selectedVariation.toUpperCase()} • ${isDuo ? 'DÚO PACK (2 UNIDADES)' : '1 UNIDAD'}`
     : (isDuo ? '🔥 SÚPER PROMO DÚO PACK — LLEVAS 2' : `⭐ ${angle.subHeadline || angle.title}`.toUpperCase());
 
   ctx.save();
-  ctx.font = '900 18px "Montserrat", system-ui, sans-serif';
+  ctx.font = '900 16px "Montserrat", sans-serif';
   const textWidth = ctx.measureText(pillText).width;
-  const pillW = Math.min(headerW, Math.max(340, textWidth + 48));
+  const pillW = Math.min(headerW, Math.max(300, textWidth + 40));
   const pillX = (width - pillW) / 2;
 
-  // Fondo degradado rojo carmesí / frambuesa con borde brillante
-  ctx.shadowColor = 'rgba(225, 29, 72, 0.45)';
+  ctx.shadowColor = 'rgba(225, 29, 72, 0.50)';
   ctx.shadowBlur = 16;
   ctx.shadowOffsetY = 3;
 
@@ -359,12 +397,12 @@ export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Pr
   pillGrad.addColorStop(0.5, '#F43F5E');
   pillGrad.addColorStop(1, '#E11D48');
   ctx.fillStyle = pillGrad;
-  drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 21);
+  drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 19);
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
   ctx.strokeStyle = '#FFFFFF';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 
   ctx.fillStyle = '#FFFFFF';
@@ -374,221 +412,210 @@ export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Pr
   ctx.restore();
 
   // =========================================================================
-  // CAPA 4: TARJETA FLOTANTE DE PRECIO GLASSMORPHIC (LOWER THIRD)
+  // PASO 4: ELEMENTO DE OFERTA / PRECIO SUTIL + MEDALLA DE CALIDAD
+  // (Fórmula exacta Google Flow: Caja de precios a la izquierda, Medalla a la derecha)
   // =========================================================================
-  const priceY = 755;
-  const priceH = 150;
+  const priceBarY = 828;
+  const priceBarH = 92;
+  const sealDiameter = 120;
+  const priceBarW = headerW - sealDiameter - 20; // Deja espacio para la medalla a la derecha
 
+  // 1. CAJA DE PRECIOS TRANSLÚCIDA CON BORDE DORADO
   ctx.save();
-  // Sombra profunda que separa la tarjeta de la foto
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 10;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 6;
 
-  // Fondo de cristal oscuro traslúcido
-  drawRoundedRect(ctx, headerX, priceY, headerW, priceH, 26);
-  ctx.fillStyle = 'rgba(12, 16, 26, 0.88)';
+  // Fondo cristal oscuro traslúcido
+  drawRoundedRect(ctx, headerX, priceBarY, priceBarW, priceBarH, 20);
+  ctx.fillStyle = 'rgba(10, 14, 23, 0.86)';
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
-  // Borde fino color ámbar dorado
   ctx.strokeStyle = 'rgba(245, 158, 11, 0.75)';
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-
-  // Línea de brillo interna superior del cristal
-  ctx.beginPath();
-  ctx.moveTo(headerX + 26, priceY + 1.5);
-  ctx.lineTo(headerX + headerW - 26, priceY + 1.5);
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 2;
   ctx.stroke();
   ctx.restore();
 
-  // Columna 1: 1 Unidad
+  // Segmento 1: 1x Unidad
+  const col1W = priceBarW * 0.32;
   ctx.save();
-  ctx.textAlign = 'left';
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = '800 15px "Montserrat", sans-serif';
-  ctx.fillStyle = '#94A3B8';
-  ctx.fillText('1 UNIDAD:', headerX + 34, priceY + 36);
-
-  ctx.font = '900 36px "Montserrat", "Oswald", sans-serif';
-  ctx.fillStyle = !isDuo ? '#FBBF24' : '#FFFFFF';
-  ctx.fillText(formatCOP(singlePriceCop), headerX + 34, priceY + 76);
-
-  ctx.font = '700 13px "Montserrat", sans-serif';
-  ctx.fillStyle = '#64748B';
-  ctx.fillText('Envío Gratis incluido', headerX + 34, priceY + 112);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('1 x', headerX + col1W / 2, priceBarY + 28);
+  ctx.font = '900 30px "Montserrat", "Oswald", sans-serif';
+  ctx.fillStyle = !isDuo ? '#FDE047' : '#FFFFFF';
+  ctx.fillText(formatCOP(singlePriceCop), headerX + col1W / 2, priceBarY + 62);
   ctx.restore();
 
-  // Línea divisoria vertical 1
+  // Divisor 1
   ctx.save();
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.30)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(headerX + 310, priceY + 20);
-  ctx.lineTo(headerX + 310, priceY + priceH - 20);
+  ctx.moveTo(headerX + col1W, priceBarY + 14);
+  ctx.lineTo(headerX + col1W, priceBarY + priceBarH - 14);
   ctx.stroke();
   ctx.restore();
 
-  // Columna 2: DÚO PACK (Destacada con brillo ámbar / dorado)
-  const duoBoxX = headerX + 330;
-  const duoBoxW = 410;
+  // Segmento 2: 2x Dúo Pack (Destacado)
+  const col2X = headerX + col1W;
+  const col2W = priceBarW * 0.38;
 
   if (isDuo) {
     ctx.save();
-    drawRoundedRect(ctx, duoBoxX - 12, priceY + 12, duoBoxW, priceH - 24, 18);
-    ctx.fillStyle = 'rgba(245, 158, 11, 0.14)';
+    drawRoundedRect(ctx, col2X + 6, priceBarY + 8, col2W - 12, priceBarH - 16, 14);
+    ctx.fillStyle = 'rgba(245, 158, 11, 0.16)';
     ctx.fill();
     ctx.strokeStyle = '#F59E0B';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.restore();
   }
 
   ctx.save();
-  ctx.textAlign = 'left';
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '900 18px "Montserrat", sans-serif';
+  ctx.font = '800 15px "Montserrat", sans-serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('2 x', col2X + col2W / 2, priceBarY + 28);
+  ctx.font = '900 32px "Montserrat", "Oswald", sans-serif';
   ctx.fillStyle = '#FDE047';
-  ctx.fillText('🔥 2x DÚO PACK (LLEVAS 2):', duoBoxX, priceY + 36);
-
-  ctx.font = '900 46px "Montserrat", "Oswald", sans-serif';
-  ctx.fillStyle = '#FBBF24'; // Dorado brillante idéntico a Image 2
-  ctx.fillText(formatCOP(duoPriceCop), duoBoxX, priceY + 76);
-
-  ctx.font = '800 13px "Montserrat", sans-serif';
-  ctx.fillStyle = '#4ADE80';
-  ctx.fillText(
-    duoSavingsCop > 0 ? `💥 ¡AHORRAS ${formatCOP(duoSavingsCop)} HOY!` : '⭐ Mayor ahorro por unidad',
-    duoBoxX,
-    priceY + 112
-  );
+  ctx.fillText(formatCOP(duoPriceCop), col2X + col2W / 2, priceBarY + 62);
   ctx.restore();
 
-  // Línea divisoria vertical 2
+  // Divisor 2
   ctx.save();
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.30)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(headerX + 760, priceY + 20);
-  ctx.lineTo(headerX + 760, priceY + priceH - 20);
+  ctx.moveTo(col2X + col2W, priceBarY + 14);
+  ctx.lineTo(col2X + col2W, priceBarY + priceBarH - 14);
   ctx.stroke();
   ctx.restore();
 
-  // Columna 3: Urgencia / Stock
+  // Segmento 3: ¡ÚLTIMAS UNIDADES!
+  const col3X = col2X + col2W;
+  const col3W = priceBarW - (col1W + col2W);
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '900 20px "Montserrat", sans-serif';
+  ctx.font = '900 17px "Montserrat", sans-serif';
   ctx.fillStyle = '#EF4444';
-  ctx.fillText('⚡ ¡ÚLTIMAS', headerX + 875, priceY + 54);
-  ctx.fillStyle = '#FCA5A5';
-  ctx.fillText('UNIDADES!', headerX + 875, priceY + 84);
+  ctx.fillText('¡ÚLTIMAS', col3X + col3W / 2, priceBarY + 30);
+  ctx.fillText('UNIDADES!', col3X + col3W / 2, priceBarY + 60);
   ctx.restore();
 
-  // Sello Circular Flotante 'ALTA CALIDAD ★★★★★' (idéntico al de Image 2)
-  ctx.save();
-  const sealR = 54;
-  const sealX = headerX + headerW - 4;
-  const sealY = priceY;
+  // 2. MEDALLA DENTADA DE ALTA CALIDAD ★★★★★ (Saw-tooth gold medal)
+  const sealCX = headerX + headerW - sealDiameter / 2;
+  const sealCY = priceBarY + priceBarH / 2;
+  const outerR = 56;
+  const innerR = 49;
 
-  // Sello Dorado Circular
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+  ctx.save();
+  ctx.shadowColor = 'rgba(245, 158, 11, 0.45)';
   ctx.shadowBlur = 16;
-  ctx.beginPath();
-  ctx.arc(sealX, sealY, sealR, 0, Math.PI * 2);
-  const sealGrad = ctx.createRadialGradient(sealX, sealY, 10, sealX, sealY, sealR);
+  ctx.shadowOffsetY = 4;
+
+  const sealGrad = ctx.createLinearGradient(
+    sealCX - outerR,
+    sealCY - outerR,
+    sealCX + outerR,
+    sealCY + outerR
+  );
   sealGrad.addColorStop(0, '#FEF08A');
-  sealGrad.addColorStop(0.6, '#F59E0B');
-  sealGrad.addColorStop(1, '#B45309');
+  sealGrad.addColorStop(0.5, '#F59E0B');
+  sealGrad.addColorStop(1, '#D97706');
   ctx.fillStyle = sealGrad;
+  drawSealStarburst(ctx, sealCX, sealCY, 24, outerR, innerR);
   ctx.fill();
 
-  ctx.shadowColor = 'transparent';
-  ctx.strokeStyle = '#FFFFFF';
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-
+  // Círculo interior oscuro
   ctx.beginPath();
-  ctx.arc(sealX, sealY, sealR - 6, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(69, 26, 3, 0.6)';
+  ctx.arc(sealCX, sealCY, 42, 0, Math.PI * 2);
+  ctx.fillStyle = '#0F172A';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(254, 240, 138, 0.8)';
   ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
   ctx.stroke();
+  ctx.setLineDash([]);
 
-  ctx.font = '900 13px "Montserrat", sans-serif';
-  ctx.fillStyle = '#451A03';
+  // Texto dentro de la medalla
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('ALTA', sealX, sealY - 14);
-  ctx.fillText('CALIDAD', sealX, sealY);
-  ctx.font = '900 11px "Montserrat", sans-serif';
-  ctx.fillText('★★★★★', sealX, sealY + 16);
+  ctx.font = '900 13px "Montserrat", sans-serif';
+  ctx.fillStyle = '#FEF08A';
+  ctx.fillText('ALTA', sealCX, sealCY - 16);
+  ctx.fillText('CALIDAD', sealCX, sealCY);
+  ctx.font = '900 12px "Montserrat", sans-serif';
+  ctx.fillStyle = '#F59E0B';
+  ctx.fillText('★★★★★', sealCX, sealCY + 16);
   ctx.restore();
 
   // =========================================================================
-  // CAPA 5: BARRA INFERIOR DE ACCIÓN (DISPARADORES COD + BOTÓN ROJO HERO)
+  // PASO 5: LLAMADO A LA ACCIÓN (CTA) Y BOTONES REDONDEADOS FLOTANTES
   // =========================================================================
-  const footerY = priceY + priceH + 18;
-  const footerH = 92;
-  const colGap = 16;
+  const footerY = priceBarY + priceBarH + 16;
+  const footerH = 68;
+  const colGap = 14;
   const colW = (headerW - colGap * 2) / 3;
 
-  // Trigger 1: 💵 PAGO EN CASA
+  // Botón Redondeado 1: 💵 PAGO EN CASA
   const t1X = headerX;
   ctx.save();
-  drawRoundedRect(ctx, t1X, footerY, colW, footerH, 22);
-  ctx.fillStyle = 'rgba(12, 16, 26, 0.88)';
+  drawRoundedRect(ctx, t1X, footerY, colW, footerH, 34);
+  ctx.fillStyle = 'rgba(10, 15, 26, 0.82)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)';
+  ctx.strokeStyle = 'rgba(34, 197, 94, 0.65)';
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '900 19px "Montserrat", sans-serif';
-  ctx.fillStyle = '#FEF08A';
-  ctx.fillText('💵 PAGO EN CASA', t1X + colW / 2, footerY + 34);
-  ctx.font = '700 13px "Montserrat", sans-serif';
+  ctx.font = '900 17px "Montserrat", sans-serif';
+  ctx.fillStyle = '#86EFAC';
+  ctx.fillText('💵 PAGO EN CASA', t1X + colW / 2, footerY + 25);
+  ctx.font = '700 12px "Montserrat", sans-serif';
   ctx.fillStyle = '#CBD5E1';
-  ctx.fillText('Pagas en efectivo al recibir', t1X + colW / 2, footerY + 62);
+  ctx.fillText('Pagas en efectivo al recibir', t1X + colW / 2, footerY + 47);
   ctx.restore();
 
-  // Trigger 2: 🚚 ENVÍO GRATIS
+  // Botón Redondeado 2: 🚚 ENVÍO GRATIS
   const t2X = t1X + colW + colGap;
   ctx.save();
-  drawRoundedRect(ctx, t2X, footerY, colW, footerH, 22);
-  ctx.fillStyle = 'rgba(12, 16, 26, 0.88)';
+  drawRoundedRect(ctx, t2X, footerY, colW, footerH, 34);
+  ctx.fillStyle = 'rgba(10, 15, 26, 0.82)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '900 19px "Montserrat", sans-serif';
-  ctx.fillStyle = '#A7F3D0';
-  ctx.fillText('🚚 ENVÍO GRATIS', t2X + colW / 2, footerY + 34);
-  ctx.font = '700 13px "Montserrat", sans-serif';
-  ctx.fillStyle = '#CBD5E1';
-  ctx.fillText('Cobertura en toda Colombia', t2X + colW / 2, footerY + 62);
+  ctx.font = '900 17px "Montserrat", sans-serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('🚚 ENVÍO GRATIS', t2X + colW / 2, footerY + 25);
+  ctx.font = '700 12px "Montserrat", sans-serif';
+  ctx.fillStyle = '#94A3B8';
+  ctx.fillText('A toda Colombia', t2X + colW / 2, footerY + 47);
   ctx.restore();
 
-  // Trigger 3: HERO CTA BUTTON ROJO DE ALTA PULSACIÓN (Idéntico a Image 2)
+  // Botón Redondeado 3: CTA HERO RADIANTE (🛒 ¡PÍDELO HOY!)
   const t3X = t2X + colW + colGap;
   ctx.save();
-  // Resplandor rojo radiante de conversión
-  ctx.shadowColor = 'rgba(220, 38, 38, 0.70)';
+  ctx.shadowColor = 'rgba(220, 38, 38, 0.85)';
   ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 6;
+  ctx.shadowOffsetY = 4;
 
   const btnGrad = ctx.createLinearGradient(t3X, footerY, t3X, footerY + footerH);
   btnGrad.addColorStop(0, '#EF4444');
   btnGrad.addColorStop(0.5, '#DC2626');
   btnGrad.addColorStop(1, '#991B1B');
   ctx.fillStyle = btnGrad;
-  drawRoundedRect(ctx, t3X, footerY, colW, footerH, 22);
+  drawRoundedRect(ctx, t3X, footerY, colW, footerH, 34);
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
@@ -596,23 +623,15 @@ export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Pr
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
-  // Brillo superior del botón
-  ctx.beginPath();
-  ctx.moveTo(t3X + 22, footerY + 2);
-  ctx.lineTo(t3X + colW - 22, footerY + 2);
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '900 22px "Montserrat", "Oswald", sans-serif';
+  ctx.font = '900 19px "Montserrat", "Oswald", sans-serif';
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText('🛒 ¡PÍDELO HOY!', t3X + colW / 2, footerY + 34);
+  ctx.fillText('🛒 ¡PÍDELO HOY!', t3X + colW / 2, footerY + 25);
 
-  ctx.font = '800 14px "Montserrat", sans-serif';
+  ctx.font = '800 12px "Montserrat", sans-serif';
   ctx.fillStyle = '#FECDD3';
-  ctx.fillText('POR MENSAJE »', t3X + colW / 2, footerY + 62);
+  ctx.fillText('POR MENSAJE »', t3X + colW / 2, footerY + 47);
   ctx.restore();
 
   return canvas.toDataURL('image/png', 1.0);

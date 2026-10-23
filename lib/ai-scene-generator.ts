@@ -1,10 +1,13 @@
 import { GoogleGenAI, Modality } from '@google/genai';
 
-const DEFAULT_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image';
-// Modelos de imagen soportados por Google AI Studio
+const DEFAULT_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-nano-banana-2.1';
+// Modelos de imagen soportados por Google AI Studio / Google Flow
 const CANDIDATE_IMAGE_MODELS = [
   DEFAULT_IMAGE_MODEL,
+  'gemini-nano-banana-2.1',
+  'gemini-3.1-flash-image',
   'gemini-3-pro-image',
+  'nano-banana-pro-preview',
   'gemini-2.5-flash-image',
 ].filter((v, idx, arr) => arr.indexOf(v) === idx);
 

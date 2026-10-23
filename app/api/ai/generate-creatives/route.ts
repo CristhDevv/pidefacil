@@ -87,50 +87,7 @@ export async function POST(request: NextRequest) {
 
     const offerType: '1x' | '2x' = selectedOffer === '1x' ? '1x' : '2x';
 
-    // 1. Verificar Caché en SQLite / Supabase si no se forzó regeneración
-    if (!forceRefresh) {
-      const cached = await getAiCreativeCache(numericId, offerType);
-      if (cached) {
-        return NextResponse.json({
-          success: true,
-          fromCache: true,
-          data: {
-            productId: numericId,
-            selectedOffer: offerType,
-            angle1: {
-              title: cached.angle_1_title,
-              description: cached.angle_1_desc,
-              imageDataUrl: cached.angle_1_image,
-              sceneDataUrl: cached.scene_1_data || null,
-            },
-            angle2: {
-              title: cached.angle_2_title,
-              description: cached.angle_2_desc,
-              imageDataUrl: cached.angle_2_image,
-              sceneDataUrl: cached.scene_2_data || null,
-            },
-            persuasiveCopy: cached.copy_text,
-            previousAngles: cached.previous_angles || [],
-            createdAt: cached.created_at,
-          },
-        });
-      }
-    }
-
-    // 2. Obtener API Key de Google Gemini
-    const apiKey = await getGeminiApiKey();
-    if (!apiKey) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            'No se ha configurado la API Key de Google Gemini. Ingresa a /admin para configurarla en 1 clic.',
-        },
-        { status: 400 }
-      );
-    }
-
-    // 3. Consultar datos del producto
+    // 1. Consultar datos del producto
     const product = await getProductById(numericId);
     if (!product) {
       return NextResponse.json(
@@ -147,6 +104,63 @@ export async function POST(request: NextRequest) {
       product.image_url ||
       (product.gallery ? JSON.parse(product.gallery)?.[0] : null) ||
       'https://via.placeholder.com/600';
+
+    // 2. Verificar Caché en SQLite / Supabase si no se forzó regeneración
+    if (!forceRefresh) {
+      const cached = await getAiCreativeCache(numericId, offerType);
+      if (cached) {
+        return NextResponse.json({
+          success: true,
+          fromCache: true,
+          data: {
+            productId: numericId,
+            productName: product.name,
+            imageUrl: originalImageUrl,
+            selectedOffer: offerType,
+            singlePriceCop: singlePrice,
+            duoPriceCop: duo.duoPriceCop,
+            duoSavingsCop: duo.savingsCop,
+            selectedVariation,
+            angle1: {
+              title: cached.angle_1_title,
+              hookHeadline: cached.angle_1_title,
+              subHeadline: cached.angle_1_desc,
+              description: cached.angle_1_desc,
+              imageDataUrl: cached.angle_1_image,
+              sceneDataUrl: cached.scene_1_data || null,
+              angleNumber: 1,
+              angleType: 'dolor_solucion',
+            },
+            angle2: {
+              title: cached.angle_2_title,
+              hookHeadline: cached.angle_2_title,
+              subHeadline: cached.angle_2_desc,
+              description: cached.angle_2_desc,
+              imageDataUrl: cached.angle_2_image,
+              sceneDataUrl: cached.scene_2_data || null,
+              angleNumber: 2,
+              angleType: 'valor_percibido',
+            },
+            persuasiveCopy: cached.copy_text,
+            previousAngles: cached.previous_angles || [],
+            createdAt: cached.created_at,
+          },
+        });
+      }
+    }
+
+    // 3. Obtener API Key de Google Gemini
+    const apiKey = await getGeminiApiKey();
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'No se ha configurado la API Key de Google Gemini. Ingresa a /admin para configurarla en 1 clic.',
+        },
+        { status: 400 }
+      );
+    }
 
     const { buffer: originalImgBuffer, mimeType: imgMime, base64: imgBase64 } =
       await fetchImageBuffer(originalImageUrl);
