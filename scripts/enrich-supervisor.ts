@@ -13,6 +13,10 @@
 import { spawn, ChildProcess } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config();
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const SUPERVISOR_LOG = path.join(DATA_DIR, 'supervisor.log');

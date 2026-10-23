@@ -15,8 +15,14 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config();
+
 import { execFileSync } from 'child_process';
 import { db } from '../lib/db';
+import { supabaseAdmin, isSupabaseConfigured } from '../lib/supabase';
 import { buildCloudFrontImageUrl } from './dropi-client';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -323,6 +329,24 @@ async function main() {
         gallery: galleryUrls.length > 0 ? JSON.stringify(galleryUrls) : null,
         variations: variationsJson,
       });
+
+      // Sincronización inmediata en Supabase (para que la tienda en vivo lo refleje al instante)
+      if (isSupabaseConfigured) {
+        try {
+          await supabaseAdmin
+            .from('products')
+            .update({
+              description: sanitized || null,
+              description_is_empty: isEmptyInSource,
+              gallery: galleryUrls.length > 0 ? galleryUrls : null,
+              stock_por_variacion: variationsJson ? JSON.parse(variationsJson) : null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id_dropi', item.id_dropi);
+        } catch (supaErr: any) {
+          console.error(`Error sincronizando producto ${item.id_dropi} a Supabase:`, supaErr.message);
+        }
+      }
 
       sessionProcessed++;
       if (sanitized) sessionWithDesc++;
