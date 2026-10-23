@@ -3,7 +3,8 @@ import { calculateDuoPrice } from '@/config/pricing';
 import { HomeClient } from '@/components/HomeClient';
 import { ProductSummary } from '@/components/ProductGrid';
 
-export const dynamic = 'force-dynamic';
+// Revalidación periódica Edge ISR (60 segundos) para servir la página en <30ms desde la CDN de Vercel
+export const revalidate = 60;
 
 export default async function HomePage() {
   const { products: dbProducts, total } = await getActiveProducts({

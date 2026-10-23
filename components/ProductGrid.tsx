@@ -69,7 +69,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-      {products.map((prod) => {
+      {products.map((prod, index) => {
         const hasImgError = imgErrors[prod.id_dropi];
         const displayImage = !hasImgError && prod.image_url
           ? prod.image_url
@@ -97,6 +97,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                   sizes="(max-width: 640px) 50vw, 25vw"
                   className="object-cover group-hover:scale-105 transition-transform duration-300"
                   unoptimized={true}
+                  priority={index < 4}
                   onError={() =>
                     setImgErrors((prev) => ({ ...prev, [prod.id_dropi]: true }))
                   }

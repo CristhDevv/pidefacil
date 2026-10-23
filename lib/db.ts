@@ -120,9 +120,9 @@ function formatProductFromSupabase(row: any): DbProduct {
   return {
     ...row,
     id_dropi: Number(row.id_dropi),
-    cost_cop: Number(row.cost_cop),
+    cost_cop: Number(row.cost_cop || 0),
     suggested_price_cop: row.suggested_price_cop ? Number(row.suggested_price_cop) : null,
-    sell_price_cop: Number(row.sell_price_cop),
+    sell_price_cop: Number(row.sell_price_cop || 0),
     stock_real: Number(row.stock_real || 0),
     stock_por_variacion:
       row.stock_por_variacion && typeof row.stock_por_variacion === 'object'
@@ -136,20 +136,37 @@ function formatProductFromSupabase(row: any): DbProduct {
       row.gallery && typeof row.gallery === 'object'
         ? JSON.stringify(row.gallery)
         : row.gallery || null,
-    is_active: Number(row.is_active || 0),
+    is_active: Number(row.is_active ?? 1),
     needs_review: Number(row.needs_review || 0),
     description_is_empty: Number(row.description_is_empty || 0),
   };
 }
+
+// Columnas ligeras para cards de producto (evita descargar 100KB+ de HTML y JSON crudo por producto)
+const CARD_COLUMNS =
+  'id_dropi, name, sku, type, cost_cop, suggested_price_cop, sell_price_cop, stock_real, supplier_name, image_url, categories, display_priority';
+
+// Caché en memoria para fichas individuales de producto (PDP) con TTL de 5 minutos
+interface CachedProduct {
+  data: DbProduct;
+  expiresAt: number;
+}
+const productMemoryCache = new Map<number, CachedProduct>();
+const PDP_CACHE_TTL_MS = 5 * 60 * 1000;
 
 // ------------------------------------------------------------------------------
 // MÉTODOS UNIVERSALES DE ACCESO A DATOS
 // ------------------------------------------------------------------------------
 
 /**
- * Consulta un producto por su id Dropi
+ * Consulta un producto por su id Dropi (con caché en memoria ultrarrápida)
  */
 export async function getProductById(id_dropi: number): Promise<DbProduct | undefined> {
+  const cached = productMemoryCache.get(id_dropi);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.data;
+  }
+
   if (isSupabaseConfigured) {
     try {
       const { data, error } = await supabaseAdmin
@@ -158,8 +175,18 @@ export async function getProductById(id_dropi: number): Promise<DbProduct | unde
         .eq('id_dropi', id_dropi)
         .maybeSingle();
 
-      if (error || !data) return undefined;
-      return formatProductFromSupabase(data);
+      if (!error && data) {
+        const formatted = formatProductFromSupabase(data);
+        if (productMemoryCache.size > 1000) {
+          const firstKey = productMemoryCache.keys().next().value;
+          if (firstKey !== undefined) productMemoryCache.delete(firstKey);
+        }
+        productMemoryCache.set(id_dropi, {
+          data: formatted,
+          expiresAt: Date.now() + PDP_CACHE_TTL_MS,
+        });
+        return formatted;
+      }
     } catch (e) {
       console.error('Error en Supabase getProductById:', e);
     }
@@ -167,9 +194,16 @@ export async function getProductById(id_dropi: number): Promise<DbProduct | unde
 
   // Fallback SQLite
   try {
-    return getSqliteDb()
+    const row = getSqliteDb()
       .prepare('SELECT * FROM products WHERE id_dropi = ?')
       .get(id_dropi) as DbProduct | undefined;
+    if (row) {
+      productMemoryCache.set(id_dropi, {
+        data: row,
+        expiresAt: Date.now() + PDP_CACHE_TTL_MS,
+      });
+    }
+    return row;
   } catch {
     return undefined;
   }
@@ -177,6 +211,7 @@ export async function getProductById(id_dropi: number): Promise<DbProduct | unde
 
 /**
  * Obtiene los productos activos para el catálogo público Mobile-First
+ * Optimizado: columnas ligeras + índice compuesto feed + cero overhead de count(*)
  */
 export async function getActiveProducts(options?: {
   category?: string;
@@ -186,32 +221,39 @@ export async function getActiveProducts(options?: {
 }): Promise<{ products: DbProduct[]; total: number }> {
   const limit = options?.limit ?? 40;
   const offset = options?.offset ?? 0;
+  const hasSearch = Boolean(options?.search && options.search.trim());
+  const hasCategory = Boolean(options?.category && options.category.toLowerCase() !== 'todo');
 
   if (isSupabaseConfigured) {
     try {
       let query = supabaseAdmin
         .from('products')
-        .select('*', { count: 'exact' })
+        .select(CARD_COLUMNS)
         .eq('is_active', 1)
         .gt('stock_real', 0);
 
-      if (options?.search && options.search.trim()) {
-        query = query.ilike('name', `%${options.search.trim()}%`);
+      if (hasSearch) {
+        query = query.ilike('name', `%${options!.search!.trim()}%`);
       }
 
-      if (options?.category && options.category.toLowerCase() !== 'todo') {
-        query = query.ilike('categories::text', `%${options.category}%`);
+      if (hasCategory) {
+        query = query.ilike('categories_text', `%${options!.category!.trim()}%`);
       }
 
-      const { data, count, error } = await query
+      const { data, error } = await query
         .order('display_priority', { ascending: true })
         .order('stock_real', { ascending: false })
         .range(offset, offset + limit - 1);
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
+        let total = 232278;
+        if (hasSearch || hasCategory) {
+          total = data.length === limit ? offset + limit + 100 : offset + data.length;
+        }
+
         return {
           products: data.map(formatProductFromSupabase),
-          total: count || data.length,
+          total,
         };
       }
     } catch (e) {

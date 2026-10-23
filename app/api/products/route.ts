@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getActiveProducts } from '@/lib/db';
 import { calculatePricing, calculateDuoPrice } from '@/config/pricing';
 
-export const dynamic = 'force-dynamic';
+// Edge Caching habilitado con Cache-Control s-maxage=60
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,16 +40,23 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      success: true,
-      data: enriched,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+    return NextResponse.json(
+      {
+        success: true,
+        data: enriched,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('Error fetching products:', error);
     return NextResponse.json(

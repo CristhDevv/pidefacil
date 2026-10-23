@@ -3,7 +3,7 @@ import { getProductById } from '@/lib/db';
 import { calculateDuoPrice } from '@/config/pricing';
 import { normalizeVariations } from '@/lib/variations';
 
-export const dynamic = 'force-dynamic';
+// Cache Edge habilitado (120s TTL) para fichas de producto rápidas
 
 export async function GET(
   _request: NextRequest,
@@ -32,29 +32,36 @@ export async function GET(
     const rawVariations = p.stock_por_variacion ? JSON.parse(p.stock_por_variacion) : [];
     const variations = normalizeVariations(rawVariations);
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        id_dropi: p.id_dropi,
-        sku: p.sku,
-        name: p.name,
-        type: p.type,
-        cost_cop: p.cost_cop,
-        suggested_price_cop: p.suggested_price_cop,
-        sell_price_cop: p.sell_price_cop,
-        duo_price_cop: duo.duoPriceCop,
-        duo_savings_cop: duo.savingsCop,
-        stock_real: p.stock_real,
-        supplier_id: p.supplier_id,
-        supplier_name: p.supplier_name,
-        supplier_badge: p.supplier_badge,
-        image_url: p.image_url,
-        gallery,
-        variations,
-        description: p.description,
-        is_active: Boolean(p.is_active),
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          id_dropi: p.id_dropi,
+          sku: p.sku,
+          name: p.name,
+          type: p.type,
+          cost_cop: p.cost_cop,
+          suggested_price_cop: p.suggested_price_cop,
+          sell_price_cop: p.sell_price_cop,
+          duo_price_cop: duo.duoPriceCop,
+          duo_savings_cop: duo.savingsCop,
+          stock_real: p.stock_real,
+          supplier_id: p.supplier_id,
+          supplier_name: p.supplier_name,
+          supplier_badge: p.supplier_badge,
+          image_url: p.image_url,
+          gallery,
+          variations,
+          description: p.description,
+          is_active: Boolean(p.is_active),
+        },
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=600',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('Error fetching product by id:', error);
     return NextResponse.json(
