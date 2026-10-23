@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { COLOMBIA_GEO } from '@/lib/colombia-geo';
 import { formatCOP } from '@/config/pricing';
+import { detectPackOfferInfo } from '@/lib/pack-detector';
 import { ProductSummary } from './ProductGrid';
 import {
   X,
@@ -147,6 +148,16 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
     }
   };
 
+  const packInfo = detectPackOfferInfo(product.name);
+  const quantityOfferLabel =
+    quantityType === '2x'
+      ? packInfo.isPack
+        ? `Lleva 2 Paquetes (${packInfo.packSize * 2} unidades en total)`
+        : '2 Unidades (Dúo Pack — Más Elegido)'
+      : packInfo.isPack
+      ? `1 Paquete (${packInfo.packSize} unidades)`
+      : '1 Unidad';
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div
@@ -183,9 +194,9 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
             <p className="text-xs font-bold text-slate-800 line-clamp-1">
               {product.name}
             </p>
-            <p className="text-[11px] text-emerald-800 font-semibold">
-              Cantidad: 1 Unidad
-              {selectedVariation ? ` • ${selectedVariation}` : ''}
+            <p className="text-[11px] text-emerald-800 font-bold">
+              Oferta: {quantityOfferLabel}
+              {selectedVariation ? ` • Opción: ${selectedVariation}` : ''}
             </p>
           </div>
           <div className="text-right flex-shrink-0 ml-3">

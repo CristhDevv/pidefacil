@@ -27,7 +27,7 @@ export async function GET(
       );
     }
 
-    const duo = calculateDuoPrice(p.sell_price_cop, 25);
+    const duo = calculateDuoPrice(p.sell_price_cop, p.cost_cop);
     const gallery = p.gallery ? JSON.parse(p.gallery) : p.image_url ? [p.image_url] : [];
     const rawVariations = p.stock_por_variacion ? JSON.parse(p.stock_por_variacion) : [];
     const variations = normalizeVariations(rawVariations);

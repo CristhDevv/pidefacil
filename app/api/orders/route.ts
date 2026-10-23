@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     let totalCop = product.sell_price_cop;
 
     if (qtyMode === '2x') {
-      const duo = calculateDuoPrice(product.sell_price_cop, 25);
+      const duo = calculateDuoPrice(product.sell_price_cop, product.cost_cop);
       totalCop = duo.duoPriceCop;
     }
 

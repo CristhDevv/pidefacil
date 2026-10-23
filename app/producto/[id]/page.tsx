@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { formatCOP } from '@/config/pricing';
+import { formatCOP, calculateDuoPrice } from '@/config/pricing';
 import { getVariationLabel } from '@/lib/variations';
+import { detectPackOfferInfo } from '@/lib/pack-detector';
 import { CodCheckoutModal } from '@/components/CodCheckoutModal';
 import { OrderSuccessModal } from '@/components/OrderSuccessModal';
 import {
@@ -32,6 +33,7 @@ export default function ProductDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariation, setSelectedVariation] = useState<string>('');
+  const [selectedOffer, setSelectedOffer] = useState<'2x' | '1x'>('2x'); // 2x Combo es el MÁS ELEGIDO por defecto
 
   // Control modal checkout COD
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -98,7 +100,11 @@ export default function ProductDetailPage() {
     : ['/placeholder.png'];
 
   const variations = product.variations || [];
-  const currentPrice = product.sell_price_cop;
+  const packInfo = detectPackOfferInfo(product.name);
+  const duo = calculateDuoPrice(product.sell_price_cop, product.cost_cop);
+  const duoPrice = duo.duoPriceCop;
+  const duoSavings = duo.savingsCop;
+  const currentPrice = selectedOffer === '2x' ? duoPrice : product.sell_price_cop;
 
   // Ancla visual de precio anterior tachado
   const anchorPrice =
@@ -208,6 +214,108 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
+        {/* Selector de Ofertas: 1x vs Combo 2x (Más Elegido) */}
+        <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+              <span>Elige tu Oferta con Envío Gratis:</span>
+            </label>
+            <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              Pagas al recibir
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5">
+            {/* Opción 2: COMBO 2X (MÁS ELEGIDO) */}
+            <div
+              onClick={() => setSelectedOffer('2x')}
+              className={`relative rounded-2xl p-3.5 border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                selectedOffer === '2x'
+                  ? 'border-emerald-600 bg-emerald-50/40 shadow-sm ring-2 ring-emerald-600/20'
+                  : 'border-slate-200 bg-white hover:border-slate-300'
+              }`}
+            >
+              {/* Badge Más Elegido */}
+              <div className="absolute -top-2.5 right-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                <Sparkles className="w-2.5 h-2.5" />
+                <span>⭐ MÁS ELEGIDO</span>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        selectedOffer === '2x'
+                          ? 'border-emerald-600 bg-emerald-600 text-white'
+                          : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {selectedOffer === '2x' && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                    <span className="text-sm font-black text-slate-900 leading-tight">
+                      {packInfo.duoTitle}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-600 leading-snug pl-6 mb-2">
+                  {packInfo.duoExpl}
+                </p>
+              </div>
+
+              <div className="pl-6 pt-1 flex items-baseline justify-between border-t border-slate-100">
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded">
+                  Ahorras {formatCOP(duoSavings)}
+                </span>
+                <span className="text-lg font-black text-[#16A34A]">
+                  {formatCOP(duoPrice)}
+                </span>
+              </div>
+            </div>
+
+            {/* Opción 1: PEDIDO INDIVIDUAL */}
+            <div
+              onClick={() => setSelectedOffer('1x')}
+              className={`relative rounded-2xl p-3.5 border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                selectedOffer === '1x'
+                  ? 'border-emerald-600 bg-emerald-50/40 shadow-sm ring-2 ring-emerald-600/20'
+                  : 'border-slate-200 bg-white hover:border-slate-300'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        selectedOffer === '1x'
+                          ? 'border-emerald-600 bg-emerald-600 text-white'
+                          : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {selectedOffer === '1x' && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                    <span className="text-sm font-bold text-slate-800 leading-tight">
+                      {packInfo.singleTitle}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-600 leading-snug pl-6 mb-2">
+                  {packInfo.singleExpl}
+                </p>
+              </div>
+
+              <div className="pl-6 pt-1 flex items-baseline justify-between border-t border-slate-100">
+                <span className="text-[10px] text-slate-400 font-medium">Precio regular</span>
+                <span className="text-lg font-black text-slate-800">
+                  {formatCOP(product.sell_price_cop)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Selector de Variaciones Obligatorio si VARIABLE */}
         {variations.length > 0 && (
           <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
@@ -280,7 +388,9 @@ export default function ProductDetailPage() {
             onClick={() => setIsCheckoutOpen(true)}
             className="w-full bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white font-black py-3.5 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
           >
-            <span>👉 PEDIR Y PAGAR EN CASA</span>
+            <span>
+              👉 PEDIR {selectedOffer === '2x' ? packInfo.duoBadge.toUpperCase() : packInfo.singleBadge.toUpperCase()}
+            </span>
             <span>—</span>
             <span>{formatCOP(currentPrice)}</span>
           </button>
@@ -291,7 +401,7 @@ export default function ProductDetailPage() {
       {isCheckoutOpen && (
         <CodCheckoutModal
           product={product}
-          quantityType="1x"
+          quantityType={selectedOffer}
           selectedVariation={selectedVariation}
           totalAmount={currentPrice}
           onClose={() => setIsCheckoutOpen(false)}

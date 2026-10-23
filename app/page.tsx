@@ -13,7 +13,7 @@ export default async function HomePage() {
   });
 
   const initialProducts: ProductSummary[] = dbProducts.map((p) => {
-    const duo = calculateDuoPrice(p.sell_price_cop, 25);
+    const duo = calculateDuoPrice(p.sell_price_cop, p.cost_cop);
     return {
       id_dropi: p.id_dropi,
       sku: p.sku,

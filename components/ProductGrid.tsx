@@ -133,6 +133,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                 </span>
               </div>
 
+              {/* Oferta Combo 2x (Más Elegido) */}
+              {prod.duo_price_cop > 0 && prod.duo_price_cop > prod.sell_price_cop && (
+                <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/60">
+                  <span>🔥 2x por</span>
+                  <span className="font-black text-emerald-700">{formatCOP(prod.duo_price_cop)}</span>
+                </div>
+              )}
+
               {/* Botón Táctil "Ver oferta" que lleva a la página del producto */}
               <div className="mt-2 w-full bg-slate-100 group-hover:bg-[#16A34A] group-hover:text-white text-slate-700 font-bold text-[11px] py-1.5 px-2 rounded-xl text-center flex items-center justify-center gap-1 transition-all">
                 <span>Ver producto</span>

@@ -66,25 +66,43 @@ export function roundUpTo9900(base: number): number {
 }
 
 /**
- * Calcula el precio para Dúo Pack (2 Unidades) aplicando descuento comercial
- * sobre la segunda unidad y redondeando a terminación psicológica 9.900.
+ * Calcula el precio para Combo x2 (Más Elegido):
+ * Regla de negocio oficial PideFácil:
+ * La segunda unidad suma ÚNICAMENTE el valor del costo del producto (cost_cop),
+ * redondeando el total hacia arriba con terminación en 9.900.
+ *
+ * Fórmula:
+ *   rawDuoTotal = singleSellPriceCop + unitCost
+ *   duoPriceCop = roundUpTo9900(rawDuoTotal)
+ *   savingsCop = (singleSellPriceCop * 2) - duoPriceCop
  */
 export function calculateDuoPrice(
   singleSellPriceCop: number,
-  discountPercent = 25
+  costCopOrPercent?: number
 ): { duoPriceCop: number; savingsCop: number } {
   if (singleSellPriceCop <= 0) {
     return { duoPriceCop: 0, savingsCop: 0 };
   }
 
-  // Costo regular sin oferta: 2x precio unitario
   const regularTotal = singleSellPriceCop * 2;
 
-  // Oferta: Unidad 1 completa + Unidad 2 con descuento
-  const unit2Price = singleSellPriceCop * (1 - discountPercent / 100);
-  const rawDuoTotal = singleSellPriceCop + unit2Price;
+  let unitCost: number;
 
-  // Redondeo hacia arriba a 9.900 para mantener la consistencia estética
+  if (typeof costCopOrPercent === 'number' && costCopOrPercent >= 1000) {
+    // Es el costo real del producto en COP
+    unitCost = Math.round(costCopOrPercent);
+  } else if (typeof costCopOrPercent === 'number' && costCopOrPercent > 0 && costCopOrPercent <= 90) {
+    // Si llegara un porcentaje legacy (ej. 25), calculamos costo proporcional
+    unitCost = singleSellPriceCop * (1 - costCopOrPercent / 100);
+  } else {
+    // Fallback: estimación segura de costo descontando margen base
+    unitCost = Math.max(10000, singleSellPriceCop - 55000);
+  }
+
+  // Unidad 1 (con margen completo) + Unidad 2 (sumando únicamente el valor de costo)
+  const rawDuoTotal = singleSellPriceCop + unitCost;
+
+  // Redondeo hacia arriba a 9.900
   const duoPriceCop = roundUpTo9900(rawDuoTotal);
   const savingsCop = Math.max(0, regularTotal - duoPriceCop);
 
@@ -136,7 +154,7 @@ export function calculatePricing(
 
   const { duoPriceCop, savingsCop } = calculateDuoPrice(
     sellPriceCop,
-    config.duoPackDiscountPercent
+    costCop
   );
 
   // Regla de Cordura de Precio:

@@ -20,9 +20,9 @@ export async function GET(request: NextRequest) {
       offset,
     });
 
-    // Enriquecer con cálculo de Dúo Pack en tiempo de respuesta
+    // Enriquecer con cálculo de Combo x2 (Más Elegido: suma costo del producto + redondeo 9.900)
     const enriched = products.map((p) => {
-      const duo = calculateDuoPrice(p.sell_price_cop, 25);
+      const duo = calculateDuoPrice(p.sell_price_cop, p.cost_cop);
       return {
         id_dropi: p.id_dropi,
         sku: p.sku,
