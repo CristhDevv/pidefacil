@@ -106,8 +106,8 @@ export const HomeClient: React.FC<HomeClientProps> = ({
         <div className="flex items-center justify-between mb-3 text-xs text-slate-500 font-semibold">
           <span>
             {isLoading
-              ? 'Buscando en catálogo Dropi...'
-              : `${totalProducts.toLocaleString('es-CO')} productos listos para envío inmediato`}
+              ? 'Buscando productos...'
+              : 'Catálogo Oficial • Envío Gratis y Pago en Casa'}
           </span>
           {searchQuery && (
             <span className="text-emerald-700">

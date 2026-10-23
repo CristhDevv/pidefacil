@@ -9,13 +9,18 @@ interface CategoryPillsProps {
 
 const CATEGORIES = [
   { id: 'todo', label: 'Todo', icon: '✨' },
+  { id: 'tecnologia', label: 'Tecnología', icon: '📱' },
   { id: 'hogar', label: 'Hogar', icon: '🏠' },
   { id: 'cocina', label: 'Cocina', icon: '🍳' },
-  { id: 'belleza', label: 'Belleza', icon: '💄' },
-  { id: 'navidad', label: 'Navidad', icon: '🎄' },
   { id: 'herramientas', label: 'Herramientas', icon: '🔧' },
-  { id: 'tecnologia', label: 'Tecnología', icon: '📱' },
+  { id: 'vehiculos', label: 'Vehículos', icon: '🚗' },
+  { id: 'navidad', label: 'Navidad', icon: '🎄' },
+  { id: 'mascotas', label: 'Mascotas', icon: '🐾' },
+  { id: 'juguetes', label: 'Juguetes', icon: '🧸' },
   { id: 'accesorios', label: 'Accesorios', icon: '🕶️' },
+  { id: 'moda', label: 'Moda', icon: '👟' },
+  { id: 'belleza', label: 'Belleza & Cuidado', icon: '💄' },
+  { id: 'lenceria', label: 'Ropa Íntima', icon: '🩱' },
 ];
 
 export const CategoryPills: React.FC<CategoryPillsProps> = ({

@@ -189,18 +189,6 @@ export default function ProductDetailPage() {
               <Clock className="w-3 h-3 text-emerald-600" />
               <span>En stock — Despacho inmediato</span>
             </span>
-            {product.stock_real < 1000 && (
-              <>
-                <span className="text-xs text-slate-300">•</span>
-                <span className={`text-xs font-semibold ${
-                  product.stock_real <= 15 ? 'text-amber-600 font-bold' : 'text-slate-500'
-                }`}>
-                  {product.stock_real <= 15
-                    ? `¡Últimas ${product.stock_real} unidades!`
-                    : `${product.stock_real} disponibles`}
-                </span>
-              </>
-            )}
           </div>
 
           <h1 className="text-lg sm:text-xl font-black text-slate-900 leading-snug">

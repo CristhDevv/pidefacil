@@ -204,6 +204,7 @@ export async function getActiveProducts(options?: {
       }
 
       const { data, count, error } = await query
+        .order('display_priority', { ascending: true })
         .order('stock_real', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -245,7 +246,7 @@ export async function getActiveProducts(options?: {
 
     const products = getSqliteDb()
       .prepare(
-        `SELECT * FROM products WHERE ${whereClause} ORDER BY stock_real DESC, updated_at DESC LIMIT ? OFFSET ?`
+        `SELECT * FROM products WHERE ${whereClause} ORDER BY display_priority ASC, stock_real DESC, updated_at DESC LIMIT ? OFFSET ?`
       )
       .all(...params, limit, offset) as DbProduct[];
 
@@ -269,6 +270,7 @@ export async function searchActiveProducts(queryText: string, limit = 10) {
         .eq('is_active', 1)
         .gt('stock_real', 0)
         .ilike('name', `%${queryText.trim()}%`)
+        .order('display_priority', { ascending: true })
         .order('stock_real', { ascending: false })
         .limit(limit);
 
