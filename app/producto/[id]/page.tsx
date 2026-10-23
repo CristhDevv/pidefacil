@@ -9,6 +9,7 @@ import { getVariationLabel } from '@/lib/variations';
 import { detectPackOfferInfo } from '@/lib/pack-detector';
 import { CodCheckoutModal } from '@/components/CodCheckoutModal';
 import { OrderSuccessModal } from '@/components/OrderSuccessModal';
+import { SocialKitDownloader } from '@/components/SocialKitDownloader';
 import {
   ArrowLeft,
   ShieldCheck,
@@ -315,6 +316,18 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Generador y Descargador en 1 Clic de Kits Publicitarios para Redes */}
+        <SocialKitDownloader
+          product={product}
+          selectedOffer={selectedOffer}
+          singlePrice={product.sell_price_cop}
+          anchorPrice={anchorPrice}
+          duoPrice={duoPrice}
+          duoSavings={duoSavings}
+          selectedVariation={selectedVariation}
+          packInfo={packInfo}
+        />
 
         {/* Selector de Variaciones Obligatorio si VARIABLE */}
         {variations.length > 0 && (
