@@ -161,30 +161,46 @@ export async function POST(request: NextRequest) {
       previousAngles,
     });
 
-    const aiRes = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
+    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+    let aiRes: any = null;
+    let lastAiError: any = null;
+
+    for (const model of candidateModels) {
+      try {
+        aiRes = await ai.models.generateContent({
+          model,
+          contents: [
             {
-              inlineData: {
-                mimeType: imgMime,
-                data: imgBase64,
-              },
-            },
-            {
-              text: userPrompt,
+              role: 'user',
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: imgMime,
+                    data: imgBase64,
+                  },
+                },
+                {
+                  text: userPrompt,
+                },
+              ],
             },
           ],
-        },
-      ],
-      config: {
-        systemInstruction,
-        tools: [{ googleSearch: {} }],
-        responseMimeType: 'application/json',
-      },
-    });
+          config: {
+            systemInstruction,
+            tools: [{ googleSearch: {} }],
+            responseMimeType: 'application/json',
+          },
+        });
+        if (aiRes) break;
+      } catch (err: any) {
+        lastAiError = err;
+        console.warn(`Modelo ${model} no disponible, intentando siguiente candidato...`, err?.message);
+      }
+    }
+
+    if (!aiRes) {
+      throw lastAiError || new Error('No se pudo generar contenido con ningún modelo de Gemini.');
+    }
 
     let rawJson = aiRes?.text || '{}';
     // Limpieza de bloques de código markdown si los incluye

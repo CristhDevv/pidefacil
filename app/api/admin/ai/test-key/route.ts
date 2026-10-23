@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthenticated } from '@/lib/auth';
-import { getGeminiApiKey, setGeminiApiKey } from '@/lib/db';
+import { getGeminiApiKey } from '@/lib/db';
 import { GoogleGenAI } from '@google/genai';
 
 export const dynamic = 'force-dynamic';
@@ -29,17 +29,34 @@ export async function POST(request: NextRequest) {
     // Inicializar GoogleGenAI SDK oficial
     const ai = new GoogleGenAI({ apiKey });
 
-    // Ping rápido con gemini-2.5-flash
-    const testRes = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: 'Ping test PideFacil. Responde únicamente con OK.',
-    });
+    // Modelos candidatos según versión de Google AI Studio
+    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+    let workingModel = '';
+    let responseText = '';
+    let lastError: any = null;
 
-    const responseText = testRes?.text?.trim() || 'OK';
+    for (const model of candidateModels) {
+      try {
+        const testRes = await ai.models.generateContent({
+          model,
+          contents: 'Ping test PideFacil. Responde únicamente con OK.',
+        });
+        responseText = testRes?.text?.trim() || 'OK';
+        workingModel = model;
+        break;
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    if (!workingModel) {
+      throw lastError || new Error('No se pudo conectar con ningún modelo disponible de Gemini');
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'API Key activa y con acceso a generación multimodal (Gemini 2.5)',
+      message: `API Key activa y con acceso a generación multimodal (${workingModel})`,
+      model: workingModel,
       response: responseText,
     });
   } catch (error: any) {
