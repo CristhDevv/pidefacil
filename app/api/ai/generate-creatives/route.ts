@@ -244,40 +244,7 @@ export async function POST(request: NextRequest) {
       throw new Error('La respuesta de Gemini no tuvo el formato JSON esperado.');
     }
 
-    // 5. ETAPA 3: Renderizado de las 2 Imágenes de Nivel Mundial
-    // Para cada ángulo, intentar generar escena con Imagen 3 o usar la imagen de estudio del producto
-    const baseScene1 =
-      (await tryGenerateImagenScene(apiKey, strategicResult.angle1.lifestylePrompt)) ||
-      originalImgBuffer;
-
-    const baseScene2 =
-      (await tryGenerateImagenScene(apiKey, strategicResult.angle2.lifestylePrompt)) ||
-      originalImgBuffer;
-
-    // Superponer el marco de alta precisión tipográfica (.900 y gatillos COD Colombia)
-    const compositeBuffer1 = await compositeAiCreativeImage(baseScene1, {
-      productName: product.name,
-      selectedOffer: offerType,
-      singlePriceCop: singlePrice,
-      duoPriceCop: duo.duoPriceCop,
-      duoSavingsCop: duo.savingsCop,
-      selectedVariation,
-      angle: strategicResult.angle1,
-    });
-
-    const compositeBuffer2 = await compositeAiCreativeImage(baseScene2, {
-      productName: product.name,
-      selectedOffer: offerType,
-      singlePriceCop: singlePrice,
-      duoPriceCop: duo.duoPriceCop,
-      duoSavingsCop: duo.savingsCop,
-      selectedVariation,
-      angle: strategicResult.angle2,
-    });
-
-    const angle1DataUrl = `data:image/png;base64,${compositeBuffer1.toString('base64')}`;
-    const angle2DataUrl = `data:image/png;base64,${compositeBuffer2.toString('base64')}`;
-
+    // 5. ETAPA 3: Formulación Estratégica Completa
     const newPreviousAngles = Array.from(
       new Set([
         ...previousAngles,
@@ -286,37 +253,33 @@ export async function POST(request: NextRequest) {
       ])
     );
 
-    // 6. Guardar en Caché Inteligente (SQLite & Supabase)
-    await saveAiCreativeCache({
-      product_id: numericId,
-      combo_type: offerType,
-      angle_1_title: strategicResult.angle1.title,
-      angle_1_desc: strategicResult.angle1.subHeadline,
-      angle_1_image: angle1DataUrl,
-      angle_2_title: strategicResult.angle2.title,
-      angle_2_desc: strategicResult.angle2.subHeadline,
-      angle_2_image: angle2DataUrl,
-      copy_text: strategicResult.persuasiveCopy,
-      previous_angles: newPreviousAngles,
-    });
-
     return NextResponse.json({
       success: true,
       fromCache: false,
       data: {
         productId: numericId,
+        productName: product.name,
+        imageUrl: originalImageUrl,
         selectedOffer: offerType,
+        singlePriceCop: singlePrice,
+        duoPriceCop: duo.duoPriceCop,
+        duoSavingsCop: duo.savingsCop,
+        selectedVariation,
         angle1: {
           title: strategicResult.angle1.title,
+          hookHeadline: strategicResult.angle1.hookHeadline,
+          subHeadline: strategicResult.angle1.subHeadline,
           description: strategicResult.angle1.subHeadline,
-          hook: strategicResult.angle1.hookHeadline,
-          imageDataUrl: angle1DataUrl,
+          angleNumber: 1,
+          angleType: 'dolor_solucion',
         },
         angle2: {
           title: strategicResult.angle2.title,
+          hookHeadline: strategicResult.angle2.hookHeadline,
+          subHeadline: strategicResult.angle2.subHeadline,
           description: strategicResult.angle2.subHeadline,
-          hook: strategicResult.angle2.hookHeadline,
-          imageDataUrl: angle2DataUrl,
+          angleNumber: 2,
+          angleType: 'valor_percibido',
         },
         persuasiveCopy: strategicResult.persuasiveCopy,
         previousAngles: newPreviousAngles,

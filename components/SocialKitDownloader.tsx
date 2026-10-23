@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { renderAiCreativeOnCanvas } from '@/lib/ai-canvas-renderer';
 import {
   Sparkles,
   Bot,
@@ -148,9 +149,67 @@ export function SocialKitDownloader({
         throw new Error(json.error || 'Error al generar los creativos con Google AI.');
       }
 
+      let img1 = json.data.angle1.imageDataUrl;
+      let img2 = json.data.angle2.imageDataUrl;
+
+      // Si no vienen pre-renderizados desde caché, renderizar en Canvas con fuentes y emojis nativos
+      if (!img1 || !img2) {
+        setCurrentStep(3);
+        setStepLabel('🎨 Renderizando anuncios de alta definición en tu pantalla...');
+        const imageSrc = json.data.imageUrl || product.image_url || product.gallery?.[0] || '';
+
+        img1 = await renderAiCreativeOnCanvas({
+          productName: json.data.productName || product.name,
+          imageUrl: imageSrc,
+          selectedOffer,
+          singlePriceCop: json.data.singlePriceCop || singlePrice,
+          duoPriceCop: json.data.duoPriceCop || duoPrice,
+          duoSavingsCop: json.data.duoSavingsCop || duoSavings,
+          selectedVariation,
+          angle: json.data.angle1,
+        });
+
+        img2 = await renderAiCreativeOnCanvas({
+          productName: json.data.productName || product.name,
+          imageUrl: imageSrc,
+          selectedOffer,
+          singlePriceCop: json.data.singlePriceCop || singlePrice,
+          duoPriceCop: json.data.duoPriceCop || duoPrice,
+          duoSavingsCop: json.data.duoSavingsCop || duoSavings,
+          selectedVariation,
+          angle: json.data.angle2,
+        });
+
+        // Guardar imágenes nítidas en caché en segundo plano
+        fetch('/api/ai/save-cache', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productId: product.id_dropi,
+            comboType: selectedOffer,
+            angle1Title: json.data.angle1.title,
+            angle1Desc: json.data.angle1.subHeadline || json.data.angle1.description,
+            angle1Image: img1,
+            angle2Title: json.data.angle2.title,
+            angle2Desc: json.data.angle2.subHeadline || json.data.angle2.description,
+            angle2Image: img2,
+            copyText: json.data.persuasiveCopy,
+            previousAngles: json.data.previousAngles,
+          }),
+        }).catch(() => {});
+      }
+
       setCreativeData({
-        angle1: json.data.angle1,
-        angle2: json.data.angle2,
+        angle1: {
+          title: json.data.angle1.title,
+          description: json.data.angle1.description || json.data.angle1.subHeadline,
+          imageDataUrl: img1,
+        },
+        angle2: {
+          title: json.data.angle2.title,
+          description: json.data.angle2.description || json.data.angle2.subHeadline,
+          imageDataUrl: img2,
+        },
         persuasiveCopy: json.data.persuasiveCopy,
         previousAngles: json.data.previousAngles,
         fromCache: Boolean(json.fromCache),
