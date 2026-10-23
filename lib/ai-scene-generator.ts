@@ -26,24 +26,33 @@ export type SceneResult =
 function buildScenePrompt(i: SceneInput): string {
   const mood =
     i.angle === 'dolor'
-      ? 'Escena cotidiana colombiana que sugiere el problema ya resuelto: alivio, comodidad, tranquilidad.'
-      : 'Escena aspiracional y premium: sensación de calidad, kit completo, buen regalo, estatus.';
+      ? 'Escena cotidiana acogedora que evoca el problema ya resuelto: alivio inmediato, orden, comodidad y tranquilidad en el hogar.'
+      : 'Escena aspiracional y premium: iluminación cálida de ambiente (ambiance), elegancia, kit completo, sensación de bienestar y estatus.';
 
-  return `Eres un fotógrafo publicitario de producto. Recibes UNA foto de referencia de un proveedor de dropshipping. Úsala ÚNICAMENTE para entender cómo es el producto físico (forma, colores, materiales, accesorios, proporciones).
-TAREA: crea una fotografía publicitaria NUEVA, cuadrada (1:1), del producto "${i.productName}" (categoría: ${i.category}).
-REGLAS ESTRICTAS
+  return `Eres un fotógrafo publicitario y director de arte comercial de respuesta directa.
+Recibes UNA foto de referencia de un proveedor de dropshipping. Úsala ÚNICAMENTE para entender cómo es el producto físico real (forma, colores, materiales, botones, accesorios y proporciones).
 
-El producto debe ser IDÉNTICO al de la referencia: misma forma, colores, botones, accesorios y proporciones. No lo rediseñes ni inventes partes.
-NO copies el fondo, la composición ni el encuadre de la referencia. Cambia por completo el escenario, la iluminación y el ángulo de cámara.
-Elimina TODO elemento de la referencia que no sea el producto: textos, precios, marcas de agua, logotipos de terceros, sellos, bordes, iconos.
-La imagen final NO debe contener ningún texto, número, letra ni logotipo (el texto se agrega después por software).
-Composición: producto grande y nítido, centrado, ~55-65% del alto. Deja el 22% superior y el 28% inferior con fondo limpio, desenfocado y de bajo detalle, porque ahí se superponen textos.
-Sin personas con rostro visible. Se permiten manos o siluetas parciales usando el producto.
-Sombras y reflejos realistas, producto bien integrado, calidad de fotografía comercial profesional, colores vivos pero naturales.
-DIRECCIÓN DE ESCENA
+TAREA: Crea una fotografía publicitaria NUEVA, cuadrada (1:1), del producto "${i.productName}" (categoría: ${i.category}), aplicando la siguiente fórmula de composición publicitaria:
+
+1. FONDO DE USO REAL (CONTEXTO E ILUMINACIÓN AMBIANCE):
+- Muestra el producto en su entorno natural y real de uso (sala, habitación, cocina, baño u oficina acogedora), NUNCA sobre fondo blanco neutro ni estudio vacío.
+- Escena acogedora de interior bien iluminada, con iluminación ambiental cálida cinematográfica donde la luz interactúa de forma realista con las superficies y el propio producto.
+- Transmite calidez, confort, orden y una sensación de bienestar visual que despierta deseo de compra instantáneo.
+
+2. INTEGRACIÓN Y PROTAGONISMO DEL PRODUCTO:
+- Protagonismo absoluto: el producto debe cubrir una parte amplia y dominante de la toma (~55% a 65% del encuadre central), mostrándose completamente funcional, activo y encendido si aplica.
+- Profundidad de campo: producto enfocado y nítido en primer plano, combinado con elementos decorativos contextuales en segundo plano suavemente desenfocados (bokeh) para dar tridimensionalidad y volumen.
+- El producto debe ser IDÉNTICO al de la foto de referencia: mismos colores, formas, accesorios y materiales. No inventes piezas inexistentes.
+
+3. ESPACIO NEGATIVO PARA CAPA GRÁFICA (OVERLAY POR SOFTWARE):
+- Deja el 22% superior y el 28% inferior con fondo limpio, desenfocado y de bajo contraste, porque allí se superpondrán por software el titular de beneficio, el bloque de precio flotante y los botones de acción COD.
+- La imagen generada NO debe contener letras, palabras, números, precios, logos ni marcas de agua.
+- Sin rostros humanos visibles (se permiten manos o siluetas parciales usando el producto si aporta naturalidad).
+
+DIRECCIÓN ESPECÍFICA DE ESCENA:
 ${mood}
 Escena sugerida: ${i.sceneBrief}
-Contexto emocional del anuncio (NO escribir en la imagen): "${i.hook}"`;
+Contexto emocional del beneficio: "${i.hook}"`;
 }
 
 export async function generateScene(i: SceneInput): Promise<SceneResult> {

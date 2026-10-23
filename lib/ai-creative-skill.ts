@@ -130,8 +130,11 @@ REGLAS INQUEBRANTABLES:
    - ÁNGULO 1: DOLOR / SOLUCIÓN DIRECTA (Enfocado en resolver un problema urgente, frustración o molestia cotidiana en un hogar real).
    - ÁNGULO 2: VALOR PERCIBIDO / KIT COMPLETO / ESTILO DE VIDA (Enfocado en la abundancia del paquete, calidad de materiales, elegancia o sensación de bienestar y estatus).
 5. Si recibes una lista de "ángulos previos", TIENES ESTRICTAMENTE PROHIBIDO repetir cualquiera de ellos. Debes buscar enfoques nuevos (ejemplo: ángulo de ahorro de dinero, ángulo de regalo para familiares, ángulo de rapidez y ahorro de tiempo, ángulo de durabilidad).
-6. Cada ángulo debe incluir un "sceneBrief": una frase concisa en español describiendo la escena fotográfica publicitaria ideal donde el producto es el protagonista, sin personas con rostro visible (solo manos o siluetas parciales si aplica), coherente con el gancho comercial. Las 2 escenas deben ser claramente distintas (Ángulo 1 dolor = entorno real donde ocurre el problema ya resuelto, como baño, cocina, cama u oficina; Ángulo 2 valor = ambiente premium, de regalo o estudio fotográfico impecable).
-7. Cada ángulo debe incluir un "lifestylePrompt" detallado y descriptivo para el modelo de imagen: fotografía comercial de estudio o estilo de vida hiperrealista, iluminación cinematográfica cálida, 8k, sin textos basura de Canva.
+6. Cada ángulo debe incluir un "hookHeadline": TITULAR SUPERIOR DIRECTO de máximo 5 palabras en MAYÚSCULAS que exprese el beneficio principal o transformación clave del producto para captar la atención de inmediato.
+7. Cada ángulo debe incluir un "sceneBrief": una frase concisa describiendo la escena fotográfica publicitaria bajo la fórmula:
+   - Fondo de uso real: espacio interior cotidiano y acogedor (sala, cocina, baño, habitación) con iluminación ambiental cálida (ambiance), donde la luz interactúa con el producto.
+   - Integración: producto en primer plano nítido, funcional y activo/encendido, con elementos decorativos en segundo plano desenfocados (bokeh) para dar profundidad. Sin rostros visibles.
+8. Cada ángulo debe incluir un "lifestylePrompt" en inglés detallado para el modelo de imagen: commercial photography, 8k, warm cinematic ambient lighting, shallow depth of field, zero text, zero logos.
 
 Debes responder ÚNICAMENTE con un objeto JSON válido respetando el esquema indicado.`;
 }
