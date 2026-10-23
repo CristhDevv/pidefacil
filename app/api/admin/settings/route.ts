@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCatalogStats, getAppSetting, setAppSetting, db, isSupabaseConfigured } from '@/lib/db';
+import {
+  getCatalogStats,
+  getAppSetting,
+  setAppSetting,
+  getGeminiApiKey,
+  setGeminiApiKey,
+  db,
+  isSupabaseConfigured,
+} from '@/lib/db';
 import { getPricingConfig } from '@/config/pricing';
 import { isAdminAuthenticated } from '@/lib/auth';
 import fs from 'fs';
@@ -20,6 +28,7 @@ export async function GET(request: NextRequest) {
     const duoVal = await getAppSetting('DUO_PACK_DISCOUNT_PERCENT');
     const storeNameVal = await getAppSetting('STORE_NAME');
     const storePhoneVal = await getAppSetting('WHATSAPP_NUMBER');
+    const geminiKey = await getGeminiApiKey();
 
     const currentMargin = marginVal ? parseInt(marginVal, 10) : config.marginBaseCop;
     const currentDuoDiscount = duoVal ? parseInt(duoVal, 10) : config.duoPackDiscountPercent;
@@ -40,6 +49,7 @@ export async function GET(request: NextRequest) {
         duo_pack_discount_percent: currentDuoDiscount,
         store_name: storeNameVal || process.env.NEXT_PUBLIC_STORE_NAME || 'PideFácil',
         whatsapp_number: storePhoneVal || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '573009123456',
+        gemini_api_key: geminiKey || '',
       },
       heartbeat,
     });
@@ -59,7 +69,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { margin_base_cop, duo_pack_discount_percent, store_name, whatsapp_number } = body;
+    const {
+      margin_base_cop,
+      duo_pack_discount_percent,
+      store_name,
+      whatsapp_number,
+      gemini_api_key,
+    } = body;
+
+    if (typeof gemini_api_key === 'string') {
+      await setGeminiApiKey(gemini_api_key);
+    }
 
     if (typeof margin_base_cop === 'number') {
       if (margin_base_cop < 20000 || margin_base_cop > 150000) {

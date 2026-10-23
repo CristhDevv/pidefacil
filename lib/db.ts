@@ -58,6 +58,21 @@ export interface DbProductChangeHistory {
   reason: string;
 }
 
+export interface ProductAiCreative {
+  id?: number;
+  product_id: number;
+  combo_type: '1x' | '2x';
+  angle_1_title: string;
+  angle_1_desc?: string;
+  angle_1_image: string; // Base64 o Data URL
+  angle_2_title: string;
+  angle_2_desc?: string;
+  angle_2_image: string; // Base64 o Data URL
+  copy_text: string;
+  previous_angles?: string[];
+  created_at?: string;
+}
+
 export interface DbCodOrder {
   id?: number;
   order_number: string;
@@ -102,6 +117,27 @@ export function getSqliteDb() {
     sqliteInstance.pragma('synchronous = NORMAL');
     sqliteInstance.pragma('foreign_keys = ON');
     sqliteInstance.pragma('busy_timeout = 30000');
+
+    // Inicializar tabla de creativos IA si no existe
+    try {
+      sqliteInstance.exec(`
+        CREATE TABLE IF NOT EXISTS product_ai_creatives (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          product_id INTEGER NOT NULL,
+          combo_type TEXT NOT NULL,
+          angle_1_title TEXT NOT NULL,
+          angle_1_desc TEXT,
+          angle_1_image TEXT NOT NULL,
+          angle_2_title TEXT NOT NULL,
+          angle_2_desc TEXT,
+          angle_2_image TEXT NOT NULL,
+          copy_text TEXT NOT NULL,
+          previous_angles TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_ai_creatives_product ON product_ai_creatives (product_id, combo_type);
+      `);
+    } catch {}
   }
   return sqliteInstance;
 }
@@ -620,6 +656,149 @@ export async function setAppSetting(key: string, value: string): Promise<boolean
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Obtiene la API Key de Google Gemini/AI Studio (Prioridad: BD app_settings -> Variable de entorno)
+ */
+export async function getGeminiApiKey(): Promise<string> {
+  const dbKey = await getAppSetting('gemini_api_key');
+  if (dbKey && dbKey.trim() !== '') {
+    return dbKey.trim();
+  }
+  return process.env.GEMINI_API_KEY?.trim() || '';
+}
+
+/**
+ * Guarda la API Key de Google Gemini/AI Studio en app_settings
+ */
+export async function setGeminiApiKey(key: string): Promise<boolean> {
+  return setAppSetting('gemini_api_key', key.trim());
+}
+
+/**
+ * Obtiene el último kit creativo IA almacenado en caché para un producto y combo
+ */
+export async function getAiCreativeCache(
+  productId: number,
+  comboType: '1x' | '2x'
+): Promise<ProductAiCreative | null> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('product_ai_creatives')
+        .select('*')
+        .eq('product_id', productId)
+        .eq('combo_type', comboType)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        return {
+          id: data.id,
+          product_id: Number(data.product_id),
+          combo_type: data.combo_type,
+          angle_1_title: data.angle_1_title,
+          angle_1_desc: data.angle_1_desc,
+          angle_1_image: data.angle_1_image,
+          angle_2_title: data.angle_2_title,
+          angle_2_desc: data.angle_2_desc,
+          angle_2_image: data.angle_2_image,
+          copy_text: data.copy_text,
+          previous_angles: Array.isArray(data.previous_angles) ? data.previous_angles : [],
+          created_at: data.created_at,
+        };
+      }
+    } catch (e) {
+      console.error('Error obteniendo creativo IA en Supabase:', e);
+    }
+  }
+
+  try {
+    const s = getSqliteDb();
+    const row = s
+      .prepare(
+        'SELECT * FROM product_ai_creatives WHERE product_id = ? AND combo_type = ? ORDER BY created_at DESC LIMIT 1'
+      )
+      .get(productId, comboType) as any;
+
+    if (row) {
+      let previous_angles: string[] = [];
+      try {
+        previous_angles = row.previous_angles ? JSON.parse(row.previous_angles) : [];
+      } catch {}
+      return {
+        id: row.id,
+        product_id: Number(row.product_id),
+        combo_type: row.combo_type,
+        angle_1_title: row.angle_1_title,
+        angle_1_desc: row.angle_1_desc,
+        angle_1_image: row.angle_1_image,
+        angle_2_title: row.angle_2_title,
+        angle_2_desc: row.angle_2_desc,
+        angle_2_image: row.angle_2_image,
+        copy_text: row.copy_text,
+        previous_angles,
+        created_at: row.created_at,
+      };
+    }
+  } catch (e) {
+    console.error('Error obteniendo creativo IA en SQLite:', e);
+  }
+
+  return null;
+}
+
+/**
+ * Guarda un kit de creativos IA en la caché persistente
+ */
+export async function saveAiCreativeCache(data: ProductAiCreative): Promise<void> {
+  const now = new Date().toISOString();
+
+  if (isSupabaseConfigured) {
+    try {
+      await supabaseAdmin.from('product_ai_creatives').insert({
+        product_id: data.product_id,
+        combo_type: data.combo_type,
+        angle_1_title: data.angle_1_title,
+        angle_1_desc: data.angle_1_desc || '',
+        angle_1_image: data.angle_1_image,
+        angle_2_title: data.angle_2_title,
+        angle_2_desc: data.angle_2_desc || '',
+        angle_2_image: data.angle_2_image,
+        copy_text: data.copy_text,
+        previous_angles: data.previous_angles || [],
+        created_at: now,
+      });
+    } catch (e) {
+      console.error('Error guardando creativo IA en Supabase:', e);
+    }
+  }
+
+  try {
+    const s = getSqliteDb();
+    s.prepare(`
+      INSERT INTO product_ai_creatives (
+        product_id, combo_type, angle_1_title, angle_1_desc, angle_1_image,
+        angle_2_title, angle_2_desc, angle_2_image, copy_text, previous_angles, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      data.product_id,
+      data.combo_type,
+      data.angle_1_title,
+      data.angle_1_desc || '',
+      data.angle_1_image,
+      data.angle_2_title,
+      data.angle_2_desc || '',
+      data.angle_2_image,
+      data.copy_text,
+      JSON.stringify(data.previous_angles || []),
+      now
+    );
+  } catch (e) {
+    console.error('Error guardando creativo IA en SQLite:', e);
   }
 }
 

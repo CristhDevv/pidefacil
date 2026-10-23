@@ -2,29 +2,25 @@
 
 import React, { useState } from 'react';
 import {
-  Download,
-  Share2,
   Sparkles,
-  Check,
+  Bot,
+  RefreshCw,
+  Download,
   Copy,
-  ExternalLink,
-  X,
-  Smartphone,
-  Square,
-  Flame,
+  Check,
   CheckCircle2,
-  FileText,
+  X,
+  Share2,
+  AlertTriangle,
+  Zap,
+  Layers,
+  ArrowRight,
+  ExternalLink,
 } from 'lucide-react';
-import {
-  renderSocialCreative,
-  GeneratedCreative,
-  CreativeFormat,
-} from '@/lib/social-creatives-generator';
-import { generatePersuasiveCopy } from '@/lib/social-copy-generator';
 
-interface SocialKitDownloaderProps {
+interface AiCreativeStudioProps {
   product: {
-    id_dropi?: number;
+    id_dropi: number;
     name: string;
     image_url?: string;
     gallery?: string[];
@@ -46,6 +42,20 @@ interface SocialKitDownloaderProps {
   };
 }
 
+interface AngleItem {
+  title: string;
+  description?: string;
+  imageDataUrl: string;
+}
+
+interface CreativeResponseData {
+  angle1: AngleItem;
+  angle2: AngleItem;
+  persuasiveCopy: string;
+  previousAngles?: string[];
+  fromCache?: boolean;
+}
+
 export function SocialKitDownloader({
   product,
   selectedOffer,
@@ -55,280 +65,207 @@ export function SocialKitDownloader({
   duoSavings,
   selectedVariation,
   packInfo,
-}: SocialKitDownloaderProps) {
+}: AiCreativeStudioProps) {
+  const [isOpen, setIsOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [progressText, setProgressText] = useState('');
-  const [progressPercent, setProgressPercent] = useState(0);
-  const [creatives, setCreatives] = useState<GeneratedCreative[]>([]);
-  const [copiedText, setCopiedText] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedFormatTab, setSelectedFormatTab] = useState<CreativeFormat>('9:16');
+  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [stepLabel, setStepLabel] = useState<string>('');
+  const [creativeData, setCreativeData] = useState<CreativeResponseData | null>(null);
+  const [previousAnglesList, setPreviousAnglesList] = useState<string[]>([]);
   const [hasCopied, setHasCopied] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isDuo = selectedOffer === '2x';
 
-  // Texto dinámico del botón principal según la oferta activa
+  // Texto dinámico del botón principal
   const buttonLabel = isDuo
-    ? '📲 Descargar kit promocional Dúo Pack (2 Unidades) para Redes'
-    : '📲 Descargar imágenes de esta oferta (1 Unidad) para Redes';
+    ? '✨ Generar 2 Anuncios IA de Alta Conversión (Dúo Pack 2x)'
+    : '✨ Generar 2 Anuncios IA de Alta Conversión (1 Unidad)';
 
-  // Obtener lista de imágenes a procesar (máximo las primeras 3 para velocidad y rendimiento)
-  const rawImages = product.gallery && product.gallery.length > 0
-    ? product.gallery
-    : product.image_url
-    ? [product.image_url]
-    : ['/placeholder.png'];
-
-  const imagesToProcess = rawImages.slice(0, 3);
-
-  // Helper para descargar un blob directamente en el navegador
-  const downloadBlob = (blob: Blob, filename: string) => {
-    const url = URL.createObjectURL(blob);
+  // Helper para descargar DataURL como archivo PNG
+  const downloadDataUrl = (dataUrl: string, filename: string) => {
     const a = document.createElement('a');
-    a.href = url;
+    a.href = dataUrl;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     }, 1000);
   };
 
-  // Manejar generación y descarga en 1 clic
-  const handleGenerateAndDownload = async () => {
+  // Copiar copy persuasivo al portapapeles
+  const handleCopyText = async () => {
+    if (!creativeData?.persuasiveCopy) return;
     try {
-      setIsGenerating(true);
-      setProgressPercent(10);
-      setProgressText('Generando texto persuasivo de alta conversión...');
-
-      // 1. Generar Copy Persuasivo
-      const copy = generatePersuasiveCopy({
-        productName: product.name,
-        selectedOffer,
-        singlePrice,
-        anchorPrice,
-        duoPrice,
-        duoSavings,
-        selectedVariation,
-        packInfo,
-      });
-      setCopiedText(copy);
-
-      // Copiar automáticamente al portapapeles
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(copy);
-          setHasCopied(true);
-        }
-      } catch (clipboardErr) {
-        console.warn('No se pudo copiar automáticamente al portapapeles:', clipboardErr);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(creativeData.persuasiveCopy);
+        setHasCopied(true);
+        setTimeout(() => setHasCopied(false), 3000);
       }
-
-      // 2. Procesar imágenes en ambos formatos: 9:16 (Estados) y 1:1 (Feed)
-      const generatedList: GeneratedCreative[] = [];
-      const totalOps = imagesToProcess.length * 2;
-      let completedOps = 0;
-
-      for (let i = 0; i < imagesToProcess.length; i++) {
-        const imgUrl = imagesToProcess[i];
-
-        // Formato 9:16 (Historias y Estados de WhatsApp)
-        completedOps++;
-        setProgressPercent(Math.round((completedOps / (totalOps + 1)) * 90));
-        setProgressText(`Diseñando Estado 9:16 (Foto ${i + 1} de ${imagesToProcess.length})...`);
-
-        const storyCreative = await renderSocialCreative({
-          productName: product.name,
-          imageUrl: imgUrl,
-          selectedOffer,
-          singlePrice,
-          anchorPrice,
-          duoPrice,
-          duoSavings,
-          selectedVariation,
-          packInfo,
-          format: '9:16',
-          imageIndex: i,
-          totalImages: imagesToProcess.length,
-        });
-        generatedList.push(storyCreative);
-
-        // Formato 1:1 (Feed de Instagram y Facebook)
-        completedOps++;
-        setProgressPercent(Math.round((completedOps / (totalOps + 1)) * 90));
-        setProgressText(`Diseñando Post Cuadrado 1:1 (Foto ${i + 1} de ${imagesToProcess.length})...`);
-
-        const feedCreative = await renderSocialCreative({
-          productName: product.name,
-          imageUrl: imgUrl,
-          selectedOffer,
-          singlePrice,
-          anchorPrice,
-          duoPrice,
-          duoSavings,
-          selectedVariation,
-          packInfo,
-          format: '1:1',
-          imageIndex: i,
-          totalImages: imagesToProcess.length,
-        });
-        generatedList.push(feedCreative);
-      }
-
-      setProgressPercent(100);
-      setProgressText('¡Creativos persuasivos listos!');
-      setCreatives(generatedList);
-
-      // 3. Compartir nativo en móviles si está disponible
-      let nativeShared = false;
-      if (typeof navigator !== 'undefined' && navigator.canShare) {
-        try {
-          const filesToShare = generatedList.map(
-            (c) => new File([c.blob], c.filename, { type: 'image/png' })
-          );
-          if (navigator.canShare({ files: filesToShare })) {
-            nativeShared = true;
-            await navigator.share({
-              files: filesToShare,
-              title: `${product.name} — ${isDuo ? packInfo.duoTitle : packInfo.singleTitle}`,
-              text: copy,
-            });
-          }
-        } catch (shareErr: any) {
-          // El usuario canceló la hoja nativa o no completó; continuar con flujo normal
-          console.log('Web Share completado o cerrado:', shareErr);
-        }
-      }
-
-      // Si no se usó Web Share (o en escritorio), descargar automáticamente las fotos principales
-      if (!nativeShared) {
-        // Descargar la foto principal en 9:16 y 1:1 automáticamente
-        const primaryStory = generatedList.find((c) => c.format === '9:16' && c.imageIndex === 0);
-        const primaryFeed = generatedList.find((c) => c.format === '1:1' && c.imageIndex === 0);
-
-        if (primaryStory) downloadBlob(primaryStory.blob, primaryStory.filename);
-        if (primaryFeed) {
-          setTimeout(() => {
-            downloadBlob(primaryFeed.blob, primaryFeed.filename);
-          }, 400);
-        }
-      }
-
-      // Abrir modal interactivo con todas las imágenes y copy listo
-      setIsModalOpen(true);
-    } catch (error: any) {
-      console.error('Error generando creativos:', error);
-      alert('Hubo un inconveniente al generar los creativos. Por favor intenta de nuevo.');
-    } finally {
-      setIsGenerating(false);
-      setProgressPercent(0);
-      setProgressText('');
-    }
-  };
-
-  const handleCopyAgain = async () => {
-    if (!copiedText) return;
-    try {
-      await navigator.clipboard.writeText(copiedText);
-      setHasCopied(true);
-      setTimeout(() => setHasCopied(false), 3000);
     } catch {
       // Fallback
     }
   };
 
-  const filteredCreatives = creatives.filter((c) => c.format === selectedFormatTab);
+  // Flujo principal de generación con las 3 etapas
+  const handleGenerate = async (forceRefresh = false) => {
+    setIsOpen(true);
+    setIsGenerating(true);
+    setErrorMsg(null);
+    setCurrentStep(1);
+    setStepLabel('🔍 Investigando producto y dolores de clientes en internet (Google Search)...');
+
+    // Simulación fluida de pasos mientras responde el backend
+    const stepTimer1 = setTimeout(() => {
+      setCurrentStep(2);
+      setStepLabel('🧠 Formulando 2 ángulos psicológicos de venta para Colombia...');
+    }, 2800);
+
+    const stepTimer2 = setTimeout(() => {
+      setCurrentStep(3);
+      setStepLabel('🎨 Generando 2 creativos hiperrealistas limpios con Google AI...');
+    }, 6000);
+
+    try {
+      const res = await fetch('/api/ai/generate-creatives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id_dropi,
+          selectedOffer,
+          selectedVariation,
+          previousAngles: forceRefresh ? previousAnglesList : [],
+          forceRefresh,
+        }),
+      });
+
+      clearTimeout(stepTimer1);
+      clearTimeout(stepTimer2);
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Error al generar los creativos con Google AI.');
+      }
+
+      setCreativeData({
+        angle1: json.data.angle1,
+        angle2: json.data.angle2,
+        persuasiveCopy: json.data.persuasiveCopy,
+        previousAngles: json.data.previousAngles,
+        fromCache: Boolean(json.fromCache),
+      });
+
+      if (json.data.previousAngles) {
+        setPreviousAnglesList(json.data.previousAngles);
+      }
+
+      // Auto-copiar copy persuasivo
+      if (json.data.persuasiveCopy && navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(json.data.persuasiveCopy);
+          setHasCopied(true);
+        } catch {}
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error de conexión con el motor de IA.');
+    } finally {
+      setIsGenerating(false);
+      clearTimeout(stepTimer1);
+      clearTimeout(stepTimer2);
+    }
+  };
+
+  const handleDownloadBoth = () => {
+    if (!creativeData) return;
+    const cleanName = product.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .slice(0, 30);
+
+    downloadDataUrl(
+      creativeData.angle1.imageDataUrl,
+      `PideFacil_${cleanName}_Angulo1_${selectedOffer}.png`
+    );
+
+    setTimeout(() => {
+      downloadDataUrl(
+        creativeData.angle2.imageDataUrl,
+        `PideFacil_${cleanName}_Angulo2_${selectedOffer}.png`
+      );
+    }, 450);
+
+    handleCopyText();
+  };
 
   return (
     <>
-      {/* Botón Principal Secundario Mobile-First (Ubicado justo bajo la escalera de ofertas) */}
-      <div className="bg-gradient-to-r from-amber-50/70 via-emerald-50/40 to-amber-50/70 border-2 border-amber-300/80 rounded-3xl p-3.5 shadow-xs transition hover:border-amber-400">
+      {/* Botón Principal Mobile-First en la PDP */}
+      <div className="bg-gradient-to-r from-emerald-50 via-amber-50/50 to-emerald-50 border-2 border-emerald-400/80 rounded-3xl p-3.5 shadow-xs transition hover:border-emerald-500">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="flex h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              Kit Publicitario para Redes Sociales
+              <Bot className="w-3.5 h-3.5 text-emerald-700 stroke-[2.5]" />
+              Motor Creativo IA (Google Gemini + Grounding)
             </span>
           </div>
-          <span className="text-[10px] font-bold text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-200">
-            Descarga en 1 Clic
+          <span className="text-[10px] font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+            Cero Textos Sucios
           </span>
         </div>
 
         <p className="text-xs text-slate-600 leading-snug mb-3">
-          Descarga al instante las fotos del producto ya editadas con el combo activo (
+          Genera 2 anuncios profesionales fotorrealistas analizando el producto con IA y buscando
+          dolores en internet en tiempo real, adaptados al combo activo (
           <strong className="text-slate-900 font-bold">
             {isDuo ? 'Dúo Pack 2 Unidades' : '1 Unidad'}
           </strong>
-          ), marco de respuesta directa y el texto listo para pegar en Estados de WhatsApp, Instagram y Facebook.
+          ).
         </p>
 
         <button
           type="button"
-          onClick={handleGenerateAndDownload}
-          disabled={isGenerating}
-          className={`w-full py-3 px-4 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 transition shadow-sm active:scale-[0.99] ${
-            isGenerating
-              ? 'bg-slate-200 text-slate-600 cursor-wait'
-              : 'bg-white hover:bg-amber-100/40 text-emerald-950 border-2 border-emerald-500/80 hover:border-emerald-600 shadow-emerald-500/10'
-          }`}
+          onClick={() => handleGenerate(false)}
+          className="w-full py-3 px-4 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 active:scale-[0.99] text-white shadow-md shadow-emerald-700/20 transition"
         >
-          {isGenerating ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-              <span>{progressText || 'Generando creativos persuasivos...'}</span>
-            </div>
-          ) : (
-            <>
-              <Share2 className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
-              <span className="text-center">{buttonLabel}</span>
-            </>
-          )}
+          <Sparkles className="w-4 h-4 text-amber-300" />
+          <span>{buttonLabel}</span>
         </button>
-
-        {isGenerating && (
-          <div className="mt-2.5 space-y-1">
-            <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-              <div
-                className="bg-emerald-600 h-1.5 rounded-full transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-center text-slate-500 font-medium">
-              Inyectando marco de respuesta directa Colombia y precio psicológico...
-            </p>
-          </div>
-        )}
       </div>
 
-      {/* Modal / Drawer con Creativos Generados y Copy Copiado */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[90vh] flex flex-col">
-            {/* Header del Modal */}
-            <div className="p-4 bg-gradient-to-r from-emerald-900 to-slate-900 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center">
-                  <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />
+      {/* Modal / Estudio Creativo Interactivo */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+            {/* Header del Estudio Creativo */}
+            <div className="p-4 bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white flex items-center justify-between shrink-0 border-b border-emerald-900/40">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-emerald-400">
+                  <Bot className="w-5 h-5 stroke-[2.5]" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-white flex items-center gap-1.5">
-                    <span>¡Kit Publicitario Generado!</span>
-                    <span className="text-xs font-bold text-amber-300 bg-amber-400/20 px-2 py-0.2 rounded-full">
-                      {isDuo ? 'Dúo Pack' : '1 Unidad'}
+                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                    <span>Estudio Creativo IA — PideFácil</span>
+                    <span className="text-xs font-bold text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full">
+                      {isDuo ? 'Dúo Pack 2x' : '1 Unidad'}
                     </span>
+                    {creativeData?.fromCache && (
+                      <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Zap className="w-2.5 h-2.5" />
+                        Caché Instantánea
+                      </span>
+                    )}
                   </h3>
                   <p className="text-[11px] text-emerald-200">
-                    Fotos editadas en alta resolución con marco de respuesta directa Colombia.
+                    Creativos generados con Google Search Grounding y Marco Tipográfico .900 Colombia.
                   </p>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => setIsOpen(false)}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
               >
                 <X className="w-4 h-4" />
@@ -336,151 +273,262 @@ export function SocialKitDownloader({
             </div>
 
             {/* Contenido Desplazable */}
-            <div className="p-4 overflow-y-auto space-y-4">
-              {/* Alerta de Copy Copiado al Portapapeles */}
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-start justify-between gap-3 shadow-xs">
-                <div className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-black text-emerald-950">
-                      ¡Texto persuasivo copiado al portapapeles automáticamente!
-                    </p>
-                    <p className="text-[11px] text-emerald-800 leading-snug">
-                      Listo para pegar en la descripción de tu Estado de WhatsApp, Post de Facebook o Historia.
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-5">
+              {/* ESTADO 1: GENERACIÓN EN PROCESO (3 ETAPAS) */}
+              {isGenerating && (
+                <div className="py-12 px-4 text-center space-y-6 max-w-md mx-auto">
+                  <div className="relative w-20 h-20 mx-auto">
+                    <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 border-t-emerald-600 animate-spin" />
+                    <div className="absolute inset-2 rounded-full border-4 border-amber-500/20 border-b-amber-500 animate-spin [animation-direction:reverse]" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Bot className="w-8 h-8 text-emerald-600 animate-pulse" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-black text-slate-800">
+                      Agente Creativo IA en Ejecución
+                    </h4>
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                      {stepLabel}
                     </p>
                   </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={handleCopyAgain}
-                  className="shrink-0 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition"
-                >
-                  {hasCopied ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>¡Copiado!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copiar de nuevo</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Pestañas de Formato (Historias 9:16 vs Feed 1:1) */}
-              <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedFormatTab('9:16')}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition ${
-                    selectedFormatTab === '9:16'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <Smartphone className="w-3.5 h-3.5" />
-                  <span>Para Estados y Stories (9:16 Vertical)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedFormatTab('1:1')}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition ${
-                    selectedFormatTab === '1:1'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <Square className="w-3.5 h-3.5" />
-                  <span>Para Feed y Marketplace (1:1 Cuadrado)</span>
-                </button>
-              </div>
-
-              {/* Galería de Creativos Generados */}
-              <div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {filteredCreatives.map((creative, idx) => (
+                  {/* Indicador de 3 Etapas */}
+                  <div className="grid grid-cols-3 gap-2 pt-2 text-left">
                     <div
-                      key={idx}
-                      className="bg-slate-50 border border-slate-200 rounded-2xl p-2.5 flex flex-col justify-between shadow-xs"
+                      className={`p-2 rounded-xl border text-[11px] ${
+                        currentStep >= 1
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-950 font-bold'
+                          : 'border-slate-200 text-slate-400'
+                      }`}
                     >
-                      <div className="relative rounded-xl overflow-hidden bg-slate-900 mb-2 border border-slate-200">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={creative.dataUrl}
-                          alt={creative.filename}
-                          className={`w-full object-contain mx-auto ${
-                            creative.format === '9:16' ? 'max-h-72' : 'max-h-60'
-                          }`}
-                        />
-                        <span className="absolute top-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          Foto {creative.imageIndex + 1} • {creative.format}
-                        </span>
-                      </div>
+                      <span className="block font-black">Paso 1</span>
+                      Google Search
+                    </div>
+                    <div
+                      className={`p-2 rounded-xl border text-[11px] ${
+                        currentStep >= 2
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-950 font-bold'
+                          : 'border-slate-200 text-slate-400'
+                      }`}
+                    >
+                      <span className="block font-black">Paso 2</span>
+                      2 Ángulos
+                    </div>
+                    <div
+                      className={`p-2 rounded-xl border text-[11px] ${
+                        currentStep >= 3
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-950 font-bold'
+                          : 'border-slate-200 text-slate-400'
+                      }`}
+                    >
+                      <span className="block font-black">Paso 3</span>
+                      Imagen 8K
+                    </div>
+                  </div>
+                </div>
+              )}
 
-                      <div className="flex items-center gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => downloadBlob(creative.blob, creative.filename)}
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition active:scale-98"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Descargar Imagen</span>
-                        </button>
+              {/* ESTADO 2: ERROR */}
+              {errorMsg && !isGenerating && (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black text-rose-950">
+                      No se pudo completar la generación
+                    </h4>
+                    <p className="text-xs text-rose-800 leading-snug">{errorMsg}</p>
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => handleGenerate(false)}
+                        className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-1.5 px-3 rounded-lg"
+                      >
+                        Reintentar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ESTADO 3: CREATIVOS GENERADOS EXITOSAMENTE */}
+              {creativeData && !isGenerating && (
+                <>
+                  {/* Banner de Copiado */}
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="text-xs font-black text-emerald-950">
+                          ¡Texto publicitario para WhatsApp copiado al portapapeles!
+                        </p>
+                        <p className="text-[11px] text-emerald-800">
+                          Listo para pegar en la descripción de tu Estado, Post o Historia.
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyText}
+                      className="bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition shrink-0"
+                    >
+                      {hasCopied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>¡Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copiar de nuevo</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
 
-              {/* Cuadro con el Copy Publicitario Generado */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Texto de la Publicación (Copywriting Persuasivo):</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleCopyAgain}
-                    className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
-                  >
-                    <Copy className="w-3 h-3" />
-                    <span>Copiar texto</span>
-                  </button>
-                </div>
+                  {/* Las 2 Imágenes Generadas Lado a Lado */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Tarjeta Ángulo 1 */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-3xl p-3.5 flex flex-col justify-between shadow-xs">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
+                            Ángulo 1: Dolor / Transformación
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-black text-slate-900 mb-1">
+                          {creativeData.angle1.title}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mb-3 leading-snug">
+                          {creativeData.angle1.description || 'Solución directa en el hogar.'}
+                        </p>
+                      </div>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-3 max-h-40 overflow-y-auto text-xs text-slate-700 font-mono whitespace-pre-wrap leading-relaxed select-all">
-                  {copiedText}
-                </div>
-              </div>
+                      <div className="relative rounded-2xl overflow-hidden bg-slate-900 shadow-md mb-3 border border-slate-200 aspect-square">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={creativeData.angle1.imageDataUrl}
+                          alt={creativeData.angle1.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadDataUrl(
+                            creativeData.angle1.imageDataUrl,
+                            `PideFacil_${product.name}_Angulo1_${selectedOffer}.png`
+                          )
+                        }
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition active:scale-98"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>⬇️ Descargar Imagen HD (Ángulo 1)</span>
+                      </button>
+                    </div>
+
+                    {/* Tarjeta Ángulo 2 */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-3xl p-3.5 flex flex-col justify-between shadow-xs">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/90 px-2.5 py-0.5 rounded-full">
+                            Ángulo 2: Valor Percibido / Abundancia
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-black text-slate-900 mb-1">
+                          {creativeData.angle2.title}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mb-3 leading-snug">
+                          {creativeData.angle2.description || 'Kit completo y alta calidad.'}
+                        </p>
+                      </div>
+
+                      <div className="relative rounded-2xl overflow-hidden bg-slate-900 shadow-md mb-3 border border-slate-200 aspect-square">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={creativeData.angle2.imageDataUrl}
+                          alt={creativeData.angle2.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadDataUrl(
+                            creativeData.angle2.imageDataUrl,
+                            `PideFacil_${product.name}_Angulo2_${selectedOffer}.png`
+                          )
+                        }
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition active:scale-98"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>⬇️ Descargar Imagen HD (Ángulo 2)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Copywriting Persuasivo Listo para Pegar */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+                        Texto Publicitario Generado por IA (Copy WhatsApp / Redes):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyText}
+                        className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Copiar texto</span>
+                      </button>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 max-h-36 overflow-y-auto text-xs text-slate-700 font-mono whitespace-pre-wrap leading-relaxed select-all">
+                      {creativeData.persuasiveCopy}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Footer del Modal */}
-            <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  creatives.forEach((c, i) => {
-                    setTimeout(() => downloadBlob(c.blob, c.filename), i * 350);
-                  });
-                }}
-                className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Descargar las {creatives.length} Fotos</span>
-              </button>
+            {/* Footer de Acciones del Estudio Creativo */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2">
+                {/* Botón de Regeneración Inteligente */}
+                <button
+                  type="button"
+                  onClick={() => handleGenerate(true)}
+                  disabled={isGenerating}
+                  className="bg-white hover:bg-slate-100 disabled:opacity-40 text-slate-800 border border-slate-300 font-black text-xs py-2.5 px-3.5 rounded-xl flex items-center gap-1.5 shadow-xs transition"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                  <span>🔄 Regenerar con 2 ángulos diferentes</span>
+                </button>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-2 px-4 rounded-xl transition"
-              >
-                Listo / Cerrar
-              </button>
+              <div className="flex items-center gap-2">
+                {creativeData && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadBoth}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs py-2.5 px-4 rounded-xl flex items-center gap-2 shadow-sm transition"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>⬇️ Descargar Ambas + Copiar Copy</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs py-2.5 px-4 rounded-xl transition"
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
           </div>
         </div>

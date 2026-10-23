@@ -39,6 +39,9 @@ import {
   Sparkles,
   ShoppingBag,
   Layers,
+  Bot,
+  Zap,
+  Key,
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -80,6 +83,10 @@ export default function AdminPage() {
   const [marginInput, setMarginInput] = useState<number>(55000);
   const [storeNameInput, setStoreNameInput] = useState('PideFácil');
   const [whatsappInput, setWhatsappInput] = useState('573009123456');
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('');
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [isTestingAi, setIsTestingAi] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSuccessMsg, setSettingsSuccessMsg] = useState<string | null>(null);
 
@@ -115,6 +122,7 @@ export default function AdminPage() {
         setMarginInput(settingsJson.settings.margin_base_cop);
         setStoreNameInput(settingsJson.settings.store_name || 'PideFácil');
         setWhatsappInput(settingsJson.settings.whatsapp_number || '573009123456');
+        setGeminiApiKeyInput(settingsJson.settings.gemini_api_key || '');
       }
 
       // Pedidos
@@ -399,11 +407,12 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
           margin_base_cop: Number(marginInput),
           store_name: storeNameInput.trim(),
           whatsapp_number: whatsappInput.trim(),
+          gemini_api_key: geminiApiKeyInput.trim(),
         }),
       });
       const json = await res.json();
       if (json.success) {
-        setSettingsSuccessMsg('Configuración comercial y operativa actualizada con éxito.');
+        setSettingsSuccessMsg('Configuración comercial y Motor IA actualizados con éxito.');
         setTimeout(() => setSettingsSuccessMsg(null), 4000);
         loadAdminData();
       } else {
@@ -413,6 +422,29 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
       alert('Error de red al guardar configuración');
     } finally {
       setIsSavingSettings(false);
+    }
+  };
+
+  // Probar conexión con Google Gemini AI
+  const handleTestAi = async () => {
+    setIsTestingAi(true);
+    setAiTestResult(null);
+    try {
+      const res = await fetch('/api/admin/ai/test-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: geminiApiKeyInput.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiTestResult({ success: true, message: data.message });
+      } else {
+        setAiTestResult({ success: false, message: data.error || 'Error al conectar' });
+      }
+    } catch {
+      setAiTestResult({ success: false, message: 'Error de red al probar conexión con Google AI' });
+    } finally {
+      setIsTestingAi(false);
     }
   };
 
@@ -1340,6 +1372,102 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
                 <p className="text-[11px] text-slate-400 mt-1">
                   Aparece en el botón de confirmación tras realizar el pedido y en soporte.
                 </p>
+              </div>
+
+              {/* Tarjeta Destacada: Motor Creativo IA (Google Gemini Pro / Imagen) */}
+              <div className="p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl border-2 border-emerald-500/40 shadow-md space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400">
+                      <Bot className="w-4 h-4 stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-white flex items-center gap-1.5">
+                        <span>🤖 Motor Creativo IA (Google Gemini Pro / Imagen)</span>
+                        <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-full">
+                          En Caliente
+                        </span>
+                      </h3>
+                      <p className="text-[10px] text-slate-300">
+                        Investigación con Google Search Grounding y generación multimodal @google/genai.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-200 mb-1">
+                    Google AI Studio API Key (Gemini & Imagen)
+                  </label>
+                  <div className="relative">
+                    <Key className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type={showGeminiKey ? 'text' : 'password'}
+                      value={geminiApiKeyInput}
+                      onChange={(e) => setGeminiApiKeyInput(e.target.value)}
+                      placeholder="AIzaSy..."
+                      className="w-full pl-9 pr-10 py-2.5 bg-slate-950/80 border border-slate-700 rounded-xl text-xs font-mono font-bold text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowGeminiKey(!showGeminiKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    >
+                      {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400">
+                    <span>Se almacena de forma segura en Base de Datos sin reiniciar el servidor.</span>
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-400 hover:text-emerald-300 underline flex items-center gap-0.5"
+                    >
+                      <span>Obtener API Key en Google AI Studio</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                </div>
+
+                {/* Feedback de Prueba de Conexión */}
+                {aiTestResult && (
+                  <div
+                    className={`p-2.5 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                      aiTestResult.success
+                        ? 'bg-emerald-900/60 border border-emerald-500 text-emerald-200'
+                        : 'bg-rose-900/60 border border-rose-500 text-rose-200'
+                    }`}
+                  >
+                    {aiTestResult.success ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                    )}
+                    <span className="text-[11px] leading-snug">{aiTestResult.message}</span>
+                  </div>
+                )}
+
+                <div className="pt-1 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleTestAi}
+                    disabled={isTestingAi || !geminiApiKeyInput.trim()}
+                    className="w-full bg-slate-700/80 hover:bg-slate-700 disabled:opacity-40 text-emerald-300 font-bold py-2 px-3 rounded-xl border border-emerald-500/30 transition flex items-center justify-center gap-2 text-xs"
+                  >
+                    {isTestingAi ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Probando conexión con Gemini...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Probar Conexión IA</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="pt-3">
