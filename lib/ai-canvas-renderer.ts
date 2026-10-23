@@ -23,7 +23,18 @@ export interface RenderCanvasOptions {
   sceneDataUrl?: string | null;
 }
 
-// Helper para dibujar rectángulos redondeados compatible con cualquier navegador
+// Carga y espera a que las fuentes de alto impacto publicitario estén listas
+async function ensureFontsReady() {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  try {
+    await Promise.all([
+      document.fonts.load('900 46px "Montserrat"'),
+      document.fonts.load('700 36px "Oswald"'),
+    ]);
+  } catch {}
+}
+
+// Helper para dibujar rectángulos redondeados con radio configurable
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -94,7 +105,6 @@ function loadProxiedImage(rawUrl: string): Promise<HTMLImageElement> {
 
     img.onload = () => resolve(img);
     img.onerror = () => {
-      // Fallback
       if (finalSrc !== rawUrl) {
         const fallbackImg = new Image();
         fallbackImg.crossOrigin = 'anonymous';
@@ -110,10 +120,16 @@ function loadProxiedImage(rawUrl: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Renderiza el anuncio fotorrealista de alta conversión directamente en Canvas HTML5
- * con soporte nativo de fuentes del sistema y emojis a todo color (sin tofu [][][]).
+ * RENDERIZADOR CREATIVO PREMIUM (ESTÁNDAR GOOGLE FLOW / HIGH-CONVERTING COD AD)
+ * - Fondo 100% full-bleed fotográfico (escena IA o desenfoque ambiental cinematográfico del producto)
+ * - Titular con tipografía metálica dorada 3D de alto impacto ('Montserrat'/'Oswald')
+ * - Pastilla brillante con beneficio / variante
+ * - Tarjeta flotante de precios glassmorphic con acabado ámbar/oro
+ * - Botón rojo de alta pulsación ('🛒 ¡PÍDELO AHORA! »') y badges de confianza COD
  */
 export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Promise<string> {
+  await ensureFontsReady();
+
   const {
     productName,
     imageUrl,
@@ -138,32 +154,28 @@ export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Pr
     throw new Error('No se pudo inicializar contexto 2D');
   }
 
-  // 1. Intentar cargar la escena generada por IA (sceneDataUrl)
+  // 1. Cargar imagen de escena generada por IA si existe
   const targetSceneUrl = sceneDataUrl || angle.sceneDataUrl;
   let sceneImg: HTMLImageElement | null = null;
   if (targetSceneUrl) {
     try {
       sceneImg = await loadProxiedImage(targetSceneUrl);
-    } catch (sceneErr) {
-      console.warn('[Canvas Renderer] Falló carga de escena IA, usando foto de proveedor:', sceneErr);
-    }
+    } catch {}
   }
 
-  const hasScene = Boolean(sceneImg);
+  const hasAiScene = Boolean(sceneImg);
 
-  // 2. Si no hay escena IA generada, cargar la foto original del proveedor para el fallback
+  // 2. Cargar imagen original del producto (para escena o fallback)
   let productImg: HTMLImageElement | null = null;
-  if (!hasScene) {
-    try {
-      productImg = await loadProxiedImage(imageUrl);
-    } catch (e) {
-      console.warn('No se pudo cargar la imagen original del proveedor:', e);
-    }
-  }
+  try {
+    productImg = await loadProxiedImage(imageUrl);
+  } catch {}
 
-  // 3. FONDO: Escena IA a sangrado completo O Gradiente Esmeralda Fallback
-  if (hasScene && sceneImg) {
-    // Dibujar escena generada por IA cubriendo el 100% del canvas (object-fit: cover)
+  // =========================================================================
+  // CAPA 1: FONDO FOTOGRÁFICO FULL-BLEED (100% DEL LIENZO)
+  // =========================================================================
+  if (hasAiScene && sceneImg) {
+    // Si la IA generó una escena fotorrealista nueva, dibujarla a pantalla completa (cover)
     const sAspect = sceneImg.width / sceneImg.height;
     let sDrawW = width;
     let sDrawH = height;
@@ -177,106 +189,177 @@ export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Pr
       sDrawY = (height - sDrawH) / 2;
     }
     ctx.drawImage(sceneImg, sDrawX, sDrawY, sDrawW, sDrawH);
+  } else if (productImg) {
+    // FALLBACK PROFESIONAL (ESTILO ESTUDIO CINEMATOGRÁFICO DE INTERIOR):
+    // Cero cajas blancas feas. El producto se integra en un fondo ambiental cálido con profundidad
+    ctx.save();
+    // 1. Fondo difuminado ambiental que toma los colores reales de la escena
+    try {
+      ctx.filter = 'blur(35px) brightness(0.35) saturate(1.4)';
+    } catch {}
+    ctx.drawImage(productImg, -40, -40, width + 80, height + 80);
+    ctx.restore();
 
-    // Degradado oscuro superior (de rgba(0,0,0,0.78) a transparente, primeros ~34% de alto)
-    const topGrad = ctx.createLinearGradient(0, 0, 0, height * 0.34);
-    topGrad.addColorStop(0, 'rgba(0, 0, 0, 0.78)');
-    topGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.40)');
-    topGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = topGrad;
-    ctx.fillRect(0, 0, width, height * 0.34);
-
-    // Degradado oscuro inferior (de transparente a rgba(0,0,0,0.88), desde el 60% de alto)
-    const btmStartY = height * 0.60;
-    const btmGrad = ctx.createLinearGradient(0, btmStartY, 0, height);
-    btmGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    btmGrad.addColorStop(0.4, 'rgba(0, 0, 0, 0.60)');
-    btmGrad.addColorStop(1, 'rgba(0, 0, 0, 0.88)');
-    ctx.fillStyle = btmGrad;
-    ctx.fillRect(0, btmStartY, width, height - btmStartY);
-  } else {
-    // Fondo Base Fallback: Gradiente Premium Esmeralda a Pizarra
-    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-    bgGrad.addColorStop(0, '#022C22');
-    bgGrad.addColorStop(0.25, '#064E3B');
-    bgGrad.addColorStop(0.75, '#0F172A');
-    bgGrad.addColorStop(1, '#020617');
-    ctx.fillStyle = bgGrad;
+    // 2. Viñeta ambiental oscura de lujo
+    const radialGrad = ctx.createRadialGradient(
+      width / 2,
+      height / 2 - 40,
+      120,
+      width / 2,
+      height / 2,
+      680
+    );
+    radialGrad.addColorStop(0, 'rgba(15, 23, 42, 0.25)');
+    radialGrad.addColorStop(0.7, 'rgba(10, 15, 26, 0.75)');
+    radialGrad.addColorStop(1, 'rgba(5, 7, 15, 0.96)');
+    ctx.fillStyle = radialGrad;
     ctx.fillRect(0, 0, width, height);
 
-    // Patrón geométrico sutil en fallback
+    // 3. Resplandor cálido de foco detrás del producto principal
+    const spotGrad = ctx.createRadialGradient(
+      width / 2,
+      height / 2 - 30,
+      40,
+      width / 2,
+      height / 2 - 30,
+      380
+    );
+    spotGrad.addColorStop(0, 'rgba(245, 158, 11, 0.20)');
+    spotGrad.addColorStop(0.6, 'rgba(234, 88, 12, 0.08)');
+    spotGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = spotGrad;
+    ctx.fillRect(0, 160, width, 600);
+
+    // 4. Dibujar el producto físicamente grande, nítido y centrado en primer plano
     ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
-    ctx.lineWidth = 1.5;
-    for (let i = 0; i < width + height; i += 50) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(0, i);
-      ctx.stroke();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 20;
+
+    const maxProdW = 760;
+    const maxProdH = 500;
+    const pAspect = productImg.width / productImg.height;
+
+    let pDrawW = maxProdW;
+    let pDrawH = maxProdH;
+    if (pAspect > maxProdW / maxProdH) {
+      pDrawH = maxProdW / pAspect;
+    } else {
+      pDrawW = maxProdH * pAspect;
     }
+
+    const pDrawX = (width - pDrawW) / 2;
+    const pDrawY = 220 + (maxProdH - pDrawH) / 2;
+
+    ctx.drawImage(productImg, pDrawX, pDrawY, pDrawW, pDrawH);
     ctx.restore();
+  } else {
+    // Fondo fallback esmeralda ultra oscuro en caso de no haber ninguna foto
+    const darkGrad = ctx.createLinearGradient(0, 0, 0, height);
+    darkGrad.addColorStop(0, '#0F172A');
+    darkGrad.addColorStop(1, '#020617');
+    ctx.fillStyle = darkGrad;
+    ctx.fillRect(0, 0, width, height);
   }
 
-  // ==========================================
-  // SECCIÓN 1: ENCABEZADO SUPERIOR
-  // ==========================================
+  // =========================================================================
+  // CAPA 2: VIÑETAS DEGRADADAS DE PROTECCIÓN PARA TIPOGRAFÍA
+  // =========================================================================
+  // Degradado superior para legibilidad del título
+  const topGrad = ctx.createLinearGradient(0, 0, 0, 360);
+  topGrad.addColorStop(0, 'rgba(5, 7, 15, 0.92)');
+  topGrad.addColorStop(0.6, 'rgba(5, 7, 15, 0.60)');
+  topGrad.addColorStop(1, 'rgba(5, 7, 15, 0.0)');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, width, 360);
+
+  // Degradado inferior para legibilidad de precios y botones
+  const btmGrad = ctx.createLinearGradient(0, 640, 0, height);
+  btmGrad.addColorStop(0, 'rgba(5, 7, 15, 0.0)');
+  btmGrad.addColorStop(0.35, 'rgba(5, 7, 15, 0.72)');
+  btmGrad.addColorStop(1, 'rgba(5, 7, 15, 0.98)');
+  ctx.fillStyle = btmGrad;
+  ctx.fillRect(0, 640, width, height - 640);
+
+  // =========================================================================
+  // CAPA 3: ENCABEZADO Y TITULAR METÁLICO DORADO 3D (ESTILO GOOGLE FLOW)
+  // =========================================================================
   const headerX = 40;
   const headerW = width - headerX * 2;
 
-  // Mini barra superior
+  // Cintillo Superior Minimalista
   ctx.save();
-  drawRoundedRect(ctx, headerX, 22, headerW, 40, 20);
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  ctx.font = '900 18px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#A7F3D0';
+  ctx.font = '900 16px "Montserrat", system-ui, sans-serif';
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('🇨🇴 PIDEFÁCIL.CO', headerX + 20, 42);
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+  ctx.fillText('🇨🇴 PIDEFÁCIL.CO', headerX, 24);
 
-  ctx.fillStyle = '#FDE68A';
   ctx.textAlign = 'right';
-  ctx.fillText('🚚 ENVÍO GRATIS + PAGO EN CASA', headerX + headerW - 20, 42);
+  ctx.fillStyle = '#FDE68A';
+  ctx.fillText('⚡ OFERTA CONTRA ENTREGA', headerX + headerW, 24);
   ctx.restore();
 
-  // Titular de Impacto de la IA (Hook Headline)
+  // Titular Principal Dorado Metálico 3D
   ctx.save();
-  ctx.font = '900 38px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '900 44px "Montserrat", "Oswald", Impact, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-  ctx.shadowBlur = 14;
-  ctx.shadowOffsetY = 4;
 
-  const hookLines = wrapText(ctx, (angle.hookHeadline || productName).toUpperCase(), headerW - 40, 2);
-  const hookStartY = hookLines.length > 1 ? 95 : 105;
-  hookLines.forEach((line, idx) => {
-    ctx.fillText(line, width / 2, hookStartY + idx * 44);
+  const rawTitle = (angle.hookHeadline || productName).toUpperCase();
+  const titleLines = wrapText(ctx, rawTitle, headerW - 60, 2);
+  const titleStartY = titleLines.length > 1 ? 82 : 94;
+
+  titleLines.forEach((line, idx) => {
+    const curY = titleStartY + idx * 48;
+
+    // Gradiente metálico dorado idéntico a las mejores piezas de publicidad
+    const goldGrad = ctx.createLinearGradient(0, curY - 24, 0, curY + 24);
+    goldGrad.addColorStop(0.0, '#FFFBEB'); // Destello superior blanco marfil
+    goldGrad.addColorStop(0.25, '#FEF08A'); // Amarillo dorado claro
+    goldGrad.addColorStop(0.55, '#F59E0B'); // Oro cálido central
+    goldGrad.addColorStop(0.85, '#D97706'); // Ámbar metálico
+    goldGrad.addColorStop(1.0, '#92400E'); // Sombra bronce inferior
+
+    // Sombra 3D profunda
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetY = 6;
+
+    // Delineado sutil para resaltar sobre cualquier tipo de fondo
+    ctx.strokeStyle = 'rgba(69, 26, 3, 0.85)';
+    ctx.lineWidth = 3.5;
+    ctx.strokeText(line, width / 2, curY);
+
+    ctx.fillStyle = goldGrad;
+    ctx.fillText(line, width / 2, curY);
   });
   ctx.restore();
 
-  // Pastilla Central: Subtítulo de Ángulo / Combo
-  const pillY = hookStartY + hookLines.length * 44 + 8;
-  const pillH = 48;
-  const pillW = Math.min(headerW, 680);
-  const pillX = (width - pillW) / 2;
+  // Pastilla Brillante de Subtítulo / Beneficio
+  const pillY = titleStartY + titleLines.length * 48 + 4;
+  const pillH = 42;
+  const pillText = (selectedVariation && selectedVariation.trim() !== '')
+    ? `✨ ${selectedVariation.toUpperCase()} • ${isDuo ? 'DÚO PACK (2 UNIDADES)' : '1 UNIDAD'}`
+    : (isDuo ? '🔥 SÚPER PROMO DÚO PACK — LLEVAS 2' : `⭐ ${angle.subHeadline || angle.title}`.toUpperCase());
 
   ctx.save();
-  ctx.shadowColor = 'rgba(220, 38, 38, 0.45)';
+  ctx.font = '900 18px "Montserrat", system-ui, sans-serif';
+  const textWidth = ctx.measureText(pillText).width;
+  const pillW = Math.min(headerW, Math.max(340, textWidth + 48));
+  const pillX = (width - pillW) / 2;
+
+  // Fondo degradado rojo carmesí / frambuesa con borde brillante
+  ctx.shadowColor = 'rgba(225, 29, 72, 0.45)';
   ctx.shadowBlur = 16;
   ctx.shadowOffsetY = 3;
 
   const pillGrad = ctx.createLinearGradient(pillX, pillY, pillX + pillW, pillY);
-  pillGrad.addColorStop(0, '#DC2626');
-  pillGrad.addColorStop(0.5, '#F59E0B');
-  pillGrad.addColorStop(1, '#DC2626');
+  pillGrad.addColorStop(0, '#E11D48');
+  pillGrad.addColorStop(0.5, '#F43F5E');
+  pillGrad.addColorStop(1, '#E11D48');
   ctx.fillStyle = pillGrad;
-  drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 24);
+  drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 21);
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
@@ -284,299 +367,252 @@ export async function renderAiCreativeOnCanvas(options: RenderCanvasOptions): Pr
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  ctx.font = '900 20px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const pillText = isDuo
-    ? `🔥 SÚPER PROMO DÚO PACK — LLEVAS 2`
-    : `⭐ ${angle.subHeadline || angle.title}`;
   ctx.fillText(pillText, width / 2, pillY + pillH / 2);
   ctx.restore();
 
-  // ==========================================
-  // SECCIÓN 2: TERCIO CENTRAL (ESCENA O TARJETA HERO)
-  // ==========================================
-  const cardTop = pillY + pillH + 16;
-  const cardBottom = 780;
-  const cardHeight = cardBottom - cardTop;
-  const cardWidth = headerW;
-
-  if (!hasScene) {
-    // FALLBACK: Tarjeta Blanca Heroica con la foto del proveedor
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-    ctx.shadowBlur = 24;
-    ctx.shadowOffsetY = 8;
-    drawRoundedRect(ctx, headerX, cardTop, cardWidth, cardHeight, 32);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fill();
-
-    ctx.shadowColor = 'transparent';
-    ctx.strokeStyle = '#E2E8F0';
-    ctx.lineWidth = 3.5;
-    ctx.stroke();
-    ctx.restore();
-
-    // Dibujar el producto físicamente dentro de la tarjeta
-    if (productImg) {
-      ctx.save();
-      drawRoundedRect(ctx, headerX + 4, cardTop + 4, cardWidth - 8, cardHeight - 8, 28);
-      ctx.clip();
-
-      const pad = 20;
-      const availW = cardWidth - pad * 2;
-      const availH = cardHeight - pad * 2;
-
-      const imgAspect = productImg.width / productImg.height;
-      const boxAspect = availW / availH;
-
-      let drawW = availW;
-      let drawH = availH;
-      let drawX = headerX + pad;
-      let drawY = cardTop + pad;
-
-      if (imgAspect > boxAspect) {
-        drawH = availW / imgAspect;
-        drawY = cardTop + pad + (availH - drawH) / 2;
-      } else {
-        drawW = availH * imgAspect;
-        drawX = headerX + pad + (availW - drawW) / 2;
-      }
-
-      ctx.drawImage(productImg, drawX, drawY, drawW, drawH);
-      ctx.restore();
-    }
-  }
-
-  // Sello Superior Derecho: ALTA CALIDAD ★★★★★
-  ctx.save();
-  const badgeW = 250;
-  const badgeH = 42;
-  const badgeX = headerX + cardWidth - badgeW - 16;
-  const badgeY = cardTop + 16;
-  drawRoundedRect(ctx, badgeX, badgeY, badgeW, badgeH, 21);
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-  ctx.fill();
-  ctx.strokeStyle = '#F59E0B';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.font = 'bold 16px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#FBBF24';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('⭐ CALIDAD GARANTIZADA', badgeX + badgeW / 2, badgeY + badgeH / 2);
-  ctx.restore();
-
-  // Sello Superior Izquierdo: Ahorro Dúo Pack (ubicado en esquina superior izquierda para no tapar el producto)
-  if (isDuo && duoSavingsCop > 0) {
-    ctx.save();
-    const saveW = 270;
-    const saveH = 42;
-    const saveX = headerX + 16;
-    const saveY = cardTop + 16;
-    drawRoundedRect(ctx, saveX, saveY, saveW, saveH, 21);
-    ctx.fillStyle = '#16A34A';
-    ctx.fill();
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.font = '900 17px system-ui, -apple-system, sans-serif';
-    ctx.fillStyle = '#FFFFFF';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`💥 ¡AHORRAS ${formatCOP(duoSavingsCop)}!`, saveX + saveW / 2, saveY + saveH / 2);
-    ctx.restore();
-  }
-
-  // Píldora de Variante seleccionada
-  if (selectedVariation && selectedVariation.trim() !== '') {
-    ctx.save();
-    const varText = `✨ Opción: ${selectedVariation}`;
-    ctx.font = 'bold 16px system-ui, -apple-system, sans-serif';
-    const varW = Math.min(cardWidth - 60, ctx.measureText(varText).width + 36);
-    const varX = (width - varW) / 2;
-    const varY = cardBottom - 48;
-    drawRoundedRect(ctx, varX, varY, varW, 36, 18);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.fill();
-    ctx.strokeStyle = '#38BDF8';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.fillStyle = '#E0F2FE';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(varText, width / 2, varY + 18);
-    ctx.restore();
-  }
-
-  // ==========================================
-  // SECCIÓN 3: BLOQUE COMERCIAL DE PRECIOS
-  // ==========================================
-  const priceY = cardBottom + 16;
-  const priceH = 142;
+  // =========================================================================
+  // CAPA 4: TARJETA FLOTANTE DE PRECIO GLASSMORPHIC (LOWER THIRD)
+  // =========================================================================
+  const priceY = 755;
+  const priceH = 150;
 
   ctx.save();
-  drawRoundedRect(ctx, headerX, priceY, cardWidth, priceH, 28);
-  if (hasScene) {
-    // Fondo semitransparente oscuro cuando hay escena publicitaria IA para máximo contraste y legibilidad
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.58)';
-    ctx.fill();
-    ctx.strokeStyle = '#10B981';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-  } else {
-    const priceGrad = ctx.createLinearGradient(headerX, priceY, headerX + cardWidth, priceY + priceH);
-    priceGrad.addColorStop(0, '#064E3B');
-    priceGrad.addColorStop(0.5, '#042F2E');
-    priceGrad.addColorStop(1, '#0F172A');
-    ctx.fillStyle = priceGrad;
-    ctx.fill();
-    ctx.strokeStyle = '#10B981';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-  }
+  // Sombra profunda que separa la tarjeta de la foto
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 10;
 
-  // Columna 1: 1 Unidad
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#94A3B8';
-  ctx.fillText('1 Unidad:', headerX + 36, priceY + 36);
-
-  ctx.font = '900 36px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = !isDuo ? '#22C55E' : '#E2E8F0';
-  ctx.fillText(formatCOP(singlePriceCop), headerX + 36, priceY + 76);
-
-  ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#64748B';
-  ctx.fillText('Envío Gratis incluido', headerX + 36, priceY + 108);
-
-  // Línea divisoria vertical 1
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(headerX + 330, priceY + 20);
-  ctx.lineTo(headerX + 330, priceY + priceH - 20);
-  ctx.stroke();
-
-  // Columna 2: Dúo Pack (Destacado)
-  const duoBoxX = headerX + 355;
-  const duoBoxW = 380;
-  if (isDuo) {
-    drawRoundedRect(ctx, duoBoxX - 10, priceY + 12, duoBoxW, priceH - 24, 18);
-    ctx.fillStyle = 'rgba(34, 197, 94, 0.20)';
-    ctx.fill();
-    ctx.strokeStyle = '#22C55E';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-
-  ctx.font = '900 18px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#FDE68A';
-  ctx.fillText('🔥 DÚO PACK (LLEVAS 2):', duoBoxX, priceY + 36);
-
-  ctx.font = '900 46px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#22C55E';
-  ctx.fillText(formatCOP(duoPriceCop), duoBoxX, priceY + 76);
-
-  ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#86EFAC';
-  ctx.fillText('⭐ Mayor ahorro por unidad', duoBoxX, priceY + 108);
-
-  // Línea divisoria vertical 2
-  ctx.beginPath();
-  ctx.moveTo(headerX + 750, priceY + 20);
-  ctx.lineTo(headerX + 750, priceY + priceH - 20);
-  ctx.stroke();
-
-  // Columna 3: Urgencia
-  ctx.textAlign = 'center';
-  ctx.font = '900 20px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#EF4444';
-  ctx.fillText('⚡ ¡ÚLTIMAS', headerX + 865, priceY + 54);
-  ctx.fillStyle = '#FCA5A5';
-  ctx.fillText('UNIDADES!', headerX + 865, priceY + 84);
-  ctx.restore();
-
-  // ==========================================
-  // SECCIÓN 4: CINTILLO BASE CON LOS 3 DISPARADORES
-  // ==========================================
-  const footerY = priceY + priceH + 16;
-  const footerH = 88;
-  const colGap = 16;
-  const colW = (cardWidth - colGap * 2) / 3;
-
-  // Trigger 1: PAGO EN CASA
-  const t1X = headerX;
-  ctx.save();
-  drawRoundedRect(ctx, t1X, footerY, colW, footerH, 20);
-  ctx.fillStyle = hasScene ? 'rgba(0, 0, 0, 0.55)' : 'rgba(255, 255, 255, 0.08)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '900 20px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#FEF08A';
-  ctx.fillText('💵 PAGO EN CASA', t1X + colW / 2, footerY + 32);
-  ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#CBD5E1';
-  ctx.fillText('Pagas en efectivo al recibir', t1X + colW / 2, footerY + 58);
-  ctx.restore();
-
-  // Trigger 2: ENVÍO GRATIS
-  const t2X = t1X + colW + colGap;
-  ctx.save();
-  drawRoundedRect(ctx, t2X, footerY, colW, footerH, 20);
-  ctx.fillStyle = hasScene ? 'rgba(0, 0, 0, 0.55)' : 'rgba(255, 255, 255, 0.08)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '900 20px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#A7F3D0';
-  ctx.fillText('🚚 ENVÍO GRATIS', t2X + colW / 2, footerY + 32);
-  ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#CBD5E1';
-  ctx.fillText('Cobertura en toda Colombia', t2X + colW / 2, footerY + 58);
-  ctx.restore();
-
-  // Trigger 3: CTA BOTÓN TÁCTIL
-  const t3X = t2X + colW + colGap;
-  ctx.save();
-  drawRoundedRect(ctx, t3X, footerY, colW, footerH, 20);
-  ctx.shadowColor = 'rgba(34, 197, 94, 0.5)';
-  ctx.shadowBlur = 16;
-  ctx.shadowOffsetY = 4;
-
-  const btnGrad = ctx.createLinearGradient(t3X, footerY, t3X, footerY + footerH);
-  btnGrad.addColorStop(0, '#22C55E');
-  btnGrad.addColorStop(1, '#15803D');
-  ctx.fillStyle = btnGrad;
+  // Fondo de cristal oscuro traslúcido
+  drawRoundedRect(ctx, headerX, priceY, headerW, priceH, 26);
+  ctx.fillStyle = 'rgba(12, 16, 26, 0.88)';
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
-  ctx.strokeStyle = '#86EFAC';
+  // Borde fino color ámbar dorado
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.75)';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Línea de brillo interna superior del cristal
+  ctx.beginPath();
+  ctx.moveTo(headerX + 26, priceY + 1.5);
+  ctx.lineTo(headerX + headerW - 26, priceY + 1.5);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+
+  // Columna 1: 1 Unidad
+  ctx.save();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = '800 15px "Montserrat", sans-serif';
+  ctx.fillStyle = '#94A3B8';
+  ctx.fillText('1 UNIDAD:', headerX + 34, priceY + 36);
+
+  ctx.font = '900 36px "Montserrat", "Oswald", sans-serif';
+  ctx.fillStyle = !isDuo ? '#FBBF24' : '#FFFFFF';
+  ctx.fillText(formatCOP(singlePriceCop), headerX + 34, priceY + 76);
+
+  ctx.font = '700 13px "Montserrat", sans-serif';
+  ctx.fillStyle = '#64748B';
+  ctx.fillText('Envío Gratis incluido', headerX + 34, priceY + 112);
+  ctx.restore();
+
+  // Línea divisoria vertical 1
+  ctx.save();
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(headerX + 310, priceY + 20);
+  ctx.lineTo(headerX + 310, priceY + priceH - 20);
+  ctx.stroke();
+  ctx.restore();
+
+  // Columna 2: DÚO PACK (Destacada con brillo ámbar / dorado)
+  const duoBoxX = headerX + 330;
+  const duoBoxW = 410;
+
+  if (isDuo) {
+    ctx.save();
+    drawRoundedRect(ctx, duoBoxX - 12, priceY + 12, duoBoxW, priceH - 24, 18);
+    ctx.fillStyle = 'rgba(245, 158, 11, 0.14)';
+    ctx.fill();
+    ctx.strokeStyle = '#F59E0B';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = '900 18px "Montserrat", sans-serif';
+  ctx.fillStyle = '#FDE047';
+  ctx.fillText('🔥 2x DÚO PACK (LLEVAS 2):', duoBoxX, priceY + 36);
+
+  ctx.font = '900 46px "Montserrat", "Oswald", sans-serif';
+  ctx.fillStyle = '#FBBF24'; // Dorado brillante idéntico a Image 2
+  ctx.fillText(formatCOP(duoPriceCop), duoBoxX, priceY + 76);
+
+  ctx.font = '800 13px "Montserrat", sans-serif';
+  ctx.fillStyle = '#4ADE80';
+  ctx.fillText(
+    duoSavingsCop > 0 ? `💥 ¡AHORRAS ${formatCOP(duoSavingsCop)} HOY!` : '⭐ Mayor ahorro por unidad',
+    duoBoxX,
+    priceY + 112
+  );
+  ctx.restore();
+
+  // Línea divisoria vertical 2
+  ctx.save();
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(headerX + 760, priceY + 20);
+  ctx.lineTo(headerX + 760, priceY + priceH - 20);
+  ctx.stroke();
+  ctx.restore();
+
+  // Columna 3: Urgencia / Stock
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '900 20px "Montserrat", sans-serif';
+  ctx.fillStyle = '#EF4444';
+  ctx.fillText('⚡ ¡ÚLTIMAS', headerX + 875, priceY + 54);
+  ctx.fillStyle = '#FCA5A5';
+  ctx.fillText('UNIDADES!', headerX + 875, priceY + 84);
+  ctx.restore();
+
+  // Sello Circular Flotante 'ALTA CALIDAD ★★★★★' (idéntico al de Image 2)
+  ctx.save();
+  const sealR = 54;
+  const sealX = headerX + headerW - 4;
+  const sealY = priceY;
+
+  // Sello Dorado Circular
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+  ctx.shadowBlur = 16;
+  ctx.beginPath();
+  ctx.arc(sealX, sealY, sealR, 0, Math.PI * 2);
+  const sealGrad = ctx.createRadialGradient(sealX, sealY, 10, sealX, sealY, sealR);
+  sealGrad.addColorStop(0, '#FEF08A');
+  sealGrad.addColorStop(0.6, '#F59E0B');
+  sealGrad.addColorStop(1, '#B45309');
+  ctx.fillStyle = sealGrad;
+  ctx.fill();
+
+  ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(sealX, sealY, sealR - 6, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(69, 26, 3, 0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.font = '900 13px "Montserrat", sans-serif';
+  ctx.fillStyle = '#451A03';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ALTA', sealX, sealY - 14);
+  ctx.fillText('CALIDAD', sealX, sealY);
+  ctx.font = '900 11px "Montserrat", sans-serif';
+  ctx.fillText('★★★★★', sealX, sealY + 16);
+  ctx.restore();
+
+  // =========================================================================
+  // CAPA 5: BARRA INFERIOR DE ACCIÓN (DISPARADORES COD + BOTÓN ROJO HERO)
+  // =========================================================================
+  const footerY = priceY + priceH + 18;
+  const footerH = 92;
+  const colGap = 16;
+  const colW = (headerW - colGap * 2) / 3;
+
+  // Trigger 1: 💵 PAGO EN CASA
+  const t1X = headerX;
+  ctx.save();
+  drawRoundedRect(ctx, t1X, footerY, colW, footerH, 22);
+  ctx.fillStyle = 'rgba(12, 16, 26, 0.88)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '900 19px "Montserrat", sans-serif';
+  ctx.fillStyle = '#FEF08A';
+  ctx.fillText('💵 PAGO EN CASA', t1X + colW / 2, footerY + 34);
+  ctx.font = '700 13px "Montserrat", sans-serif';
+  ctx.fillStyle = '#CBD5E1';
+  ctx.fillText('Pagas en efectivo al recibir', t1X + colW / 2, footerY + 62);
+  ctx.restore();
+
+  // Trigger 2: 🚚 ENVÍO GRATIS
+  const t2X = t1X + colW + colGap;
+  ctx.save();
+  drawRoundedRect(ctx, t2X, footerY, colW, footerH, 22);
+  ctx.fillStyle = 'rgba(12, 16, 26, 0.88)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '900 19px "Montserrat", sans-serif';
+  ctx.fillStyle = '#A7F3D0';
+  ctx.fillText('🚚 ENVÍO GRATIS', t2X + colW / 2, footerY + 34);
+  ctx.font = '700 13px "Montserrat", sans-serif';
+  ctx.fillStyle = '#CBD5E1';
+  ctx.fillText('Cobertura en toda Colombia', t2X + colW / 2, footerY + 62);
+  ctx.restore();
+
+  // Trigger 3: HERO CTA BUTTON ROJO DE ALTA PULSACIÓN (Idéntico a Image 2)
+  const t3X = t2X + colW + colGap;
+  ctx.save();
+  // Resplandor rojo radiante de conversión
+  ctx.shadowColor = 'rgba(220, 38, 38, 0.70)';
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 6;
+
+  const btnGrad = ctx.createLinearGradient(t3X, footerY, t3X, footerY + footerH);
+  btnGrad.addColorStop(0, '#EF4444');
+  btnGrad.addColorStop(0.5, '#DC2626');
+  btnGrad.addColorStop(1, '#991B1B');
+  ctx.fillStyle = btnGrad;
+  drawRoundedRect(ctx, t3X, footerY, colW, footerH, 22);
+  ctx.fill();
+
+  ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Brillo superior del botón
+  ctx.beginPath();
+  ctx.moveTo(t3X + 22, footerY + 2);
+  ctx.lineTo(t3X + colW - 22, footerY + 2);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
   ctx.lineWidth = 2;
   ctx.stroke();
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '900 19px system-ui, -apple-system, sans-serif';
+  ctx.font = '900 22px "Montserrat", "Oswald", sans-serif';
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText('🛒 ¡PÍDELO HOY!', t3X + colW / 2, footerY + 32);
-  ctx.font = '900 14px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#DCFCE7';
-  ctx.fillText('POR MENSAJE »', t3X + colW / 2, footerY + 58);
+  ctx.fillText('🛒 ¡PÍDELO HOY!', t3X + colW / 2, footerY + 34);
+
+  ctx.font = '800 14px "Montserrat", sans-serif';
+  ctx.fillStyle = '#FECDD3';
+  ctx.fillText('POR MENSAJE »', t3X + colW / 2, footerY + 62);
   ctx.restore();
 
   return canvas.toDataURL('image/png', 1.0);
