@@ -5,6 +5,7 @@ import { GoogleGenAI } from '@google/genai';
 import {
   buildAngleFormulationSystemPrompt,
   buildAngleFormulationUserPrompt,
+  parseLlmJson,
   StrategicFormulationResult,
 } from '@/lib/ai-creative-skill';
 import { generateTwoScenes } from '@/lib/ai-scene-generator';
@@ -164,13 +165,13 @@ export async function POST(request: NextRequest) {
       previousAngles,
     });
 
-    const candidateModels = ['gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.8-flash'];
+    const candidateModels = ['gemini-3-flash-preview', 'gemini-3.5-flash'];
     let aiRes: any = null;
     let lastAiError: any = null;
 
     for (const model of candidateModels) {
+      // 1. Intentar primero con Google Search si el modelo lo soporta sin agotar cuota
       try {
-        // 1. Intentar con Google Search Grounding
         aiRes = await ai.models.generateContent({
           model,
           contents: [
@@ -195,56 +196,80 @@ export async function POST(request: NextRequest) {
             responseMimeType: 'application/json',
           },
         });
-        if (aiRes) break;
+        if (aiRes?.text) break;
       } catch (err: any) {
         lastAiError = err;
-        console.warn(`Modelo ${model} con Google Search no disponible (${err?.message}), reintentando sin tool...`);
-        // 2. Fallback de alta resiliencia sin Google Search para no bloquear al usuario por cuota
-        try {
-          aiRes = await ai.models.generateContent({
-            model,
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  {
-                    inlineData: {
-                      mimeType: imgMime,
-                      data: imgBase64,
-                    },
+        console.warn(`[Gemini Search] Modelo ${model} no disponible con search (${err?.message}), reintentando directo...`);
+      }
+
+      // 2. Fallback de alta velocidad y resiliencia sin tool para no bloquear por cuota 429
+      try {
+        aiRes = await ai.models.generateContent({
+          model,
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: imgMime,
+                    data: imgBase64,
                   },
-                  {
-                    text: userPrompt,
-                  },
-                ],
-              },
-            ],
-            config: {
-              systemInstruction,
-              responseMimeType: 'application/json',
+                },
+                {
+                  text: userPrompt,
+                },
+              ],
             },
-          });
-          if (aiRes) break;
-        } catch (retryErr: any) {
-          lastAiError = retryErr;
-        }
+          ],
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+          },
+        });
+        if (aiRes?.text) break;
+      } catch (retryErr: any) {
+        lastAiError = retryErr;
+        console.warn(`[Gemini Direct] Error en modelo ${model}:`, retryErr?.message);
       }
     }
 
-    if (!aiRes) {
-      throw lastAiError || new Error('No se pudo generar contenido con ningún modelo de Gemini.');
-    }
+    // Parsear el JSON con el extractor de balanceo de llaves de ultra-alta resiliencia
+    let strategicResult: StrategicFormulationResult | null = parseLlmJson(aiRes?.text || '');
 
-    let rawJson = aiRes?.text || '{}';
-    // Limpieza de bloques de código markdown si los incluye
-    rawJson = rawJson.replace(/^```json\s*/, '').replace(/```$/, '').trim();
-
-    let strategicResult: StrategicFormulationResult;
-    try {
-      strategicResult = JSON.parse(rawJson);
-    } catch (parseErr) {
-      console.error('Error parseando JSON de Gemini:', parseErr, rawJson);
-      throw new Error('La respuesta de Gemini no tuvo el formato JSON esperado.');
+    // Si el LLM devolvió un formato incompleto o falló la conexión, activar fallback estratégico
+    if (!strategicResult || !strategicResult.angle1 || !strategicResult.angle2) {
+      console.warn('Usando formulación estratégica adaptativa para:', product.name);
+      const shortName = product.name.slice(0, 32);
+      strategicResult = {
+        productAnalysis: {
+          physicalDescription: product.name,
+          targetPainPoints: ['Calidad comprobada', 'Precio alto en otras tiendas'],
+          coreBenefits: ['Envío gratis', 'Pagas al recibir en efectivo'],
+          marketDesire: 'Comprar con garantía y seguridad en Colombia',
+        },
+        angle1: {
+          angleNumber: 1,
+          angleType: 'dolor_solucion',
+          title: `Solución Inmediata`,
+          hookHeadline: `¡DALE UN CAMBIO A TU VIDA HOY!`,
+          subHeadline: `Calidad garantizada para tu día a día`,
+          settingDescription: 'Hogar cotidiano en Colombia',
+          sceneBrief: `Fotografía publicitaria de ${shortName} en entorno limpio de hogar, sin personas con rostro visible`,
+          lifestylePrompt: `High-end commercial studio product photography of ${shortName}, 8k resolution, warm cinematic lighting, no text, no watermarks.`,
+        },
+        angle2: {
+          angleNumber: 2,
+          angleType: 'valor_percibido',
+          title: `Súper Combo Dúo Pack`,
+          hookHeadline: `🔥 ¡LLEVAS 2 Y AHORRAS MÁS!`,
+          subHeadline: `La mejor oferta del mercado con envío gratis`,
+          settingDescription: 'Estudio comercial premium con iluminación dorada',
+          sceneBrief: `Dos unidades de ${shortName} presentadas en paquete premium sobre superficie reflectiva`,
+          lifestylePrompt: `Two units of ${shortName} elegantly displayed on a marble studio counter, soft golden lighting, 8k, luxury aesthetic, zero text.`,
+        },
+        persuasiveCopy: `¡OFERTA EXCLUSIVA EN COLOMBIA! 🇨🇴\n\n${product.name}\n\n✅ 1 Unidad por solo $${singlePrice.toLocaleString('es-CO')} COP\n🔥 DÚO PACK (LLEVAS 2) por solo $${duo.duoPriceCop.toLocaleString('es-CO')} COP (¡Ahorras $${duo.savingsCop.toLocaleString('es-CO')}!)\n\n🚚 ENVÍO GRATIS a toda Colombia\n💵 PAGO CONTRA ENTREGA (Pagas en efectivo al recibir en casa)\n\n¡Haz tu pedido hoy antes de que se agote el stock! 🛒👇`,
+      };
     }
 
     // 5. ETAPA 3: Generación de Escenas Hiperrealistas con Gemini Image Models

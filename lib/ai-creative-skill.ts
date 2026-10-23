@@ -41,6 +41,79 @@ export interface StrategicFormulationResult {
 }
 
 /**
+ * Parser de ultra-alta resiliencia para respuestas JSON generadas por LLMs.
+ * Tolera llaves sobrantes al final, bloques markdown ```json, preámbulos conversacionales
+ * y comas colgantes mediante balanceo de profundidad de llaves { ... }.
+ */
+export function parseLlmJson(rawText: string): any {
+  if (!rawText) return null;
+  const trimmed = rawText.trim();
+
+  // 1. Intento directo estándar
+  try {
+    return JSON.parse(trimmed);
+  } catch {}
+
+  // 2. Extraer bloque markdown ```json ... ```
+  const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    try {
+      return JSON.parse(codeBlockMatch[1].trim());
+    } catch {}
+  }
+
+  // 3. Parser de balanceo de llaves { ... } exacto
+  const startIdx = trimmed.indexOf('{');
+  if (startIdx === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let endIdx = -1;
+
+  for (let i = startIdx; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (char === '\\') {
+      escape = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (char === '{') {
+        depth++;
+      } else if (char === '}') {
+        depth--;
+        if (depth === 0) {
+          endIdx = i;
+          break;
+        }
+      }
+    }
+  }
+
+  if (endIdx !== -1) {
+    const exactJson = trimmed.slice(startIdx, endIdx + 1);
+    try {
+      return JSON.parse(exactJson);
+    } catch (e) {
+      try {
+        const cleaned = exactJson.replace(/,\s*([\]}])/g, '$1');
+        return JSON.parse(cleaned);
+      } catch {}
+    }
+  }
+
+  return null;
+}
+
+/**
  * System Prompt que instruye a Gemini para investigar el producto con Google Search
  * y formular los 2 ángulos psicológicos distintos.
  */
