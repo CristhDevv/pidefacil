@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
     // Inicializar GoogleGenAI SDK oficial
     const ai = new GoogleGenAI({ apiKey });
 
-    // Modelos candidatos según versión de Google AI Studio
-    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+    // Modelos estables y rápidos para Google AI Studio (3.5 Flash y 3 Flash Preview)
+    const candidateModels = ['gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.8-flash'];
     let workingModel = '';
     let responseText = '';
     let lastError: any = null;
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       try {
         const testRes = await ai.models.generateContent({
           model,
-          contents: 'Ping test PideFacil. Responde únicamente con OK.',
+          contents: 'Ping test PideFacil. Responde unicamente OK.',
         });
         responseText = testRes?.text?.trim() || 'OK';
         workingModel = model;
@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (!workingModel) {
-      throw lastError || new Error('No se pudo conectar con ningún modelo disponible de Gemini');
+      const errMsg = lastError?.message || JSON.stringify(lastError);
+      throw new Error(errMsg);
     }
 
     return NextResponse.json({

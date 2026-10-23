@@ -161,12 +161,13 @@ export async function POST(request: NextRequest) {
       previousAngles,
     });
 
-    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+    const candidateModels = ['gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.8-flash'];
     let aiRes: any = null;
     let lastAiError: any = null;
 
     for (const model of candidateModels) {
       try {
+        // 1. Intentar con Google Search Grounding
         aiRes = await ai.models.generateContent({
           model,
           contents: [
@@ -194,7 +195,36 @@ export async function POST(request: NextRequest) {
         if (aiRes) break;
       } catch (err: any) {
         lastAiError = err;
-        console.warn(`Modelo ${model} no disponible, intentando siguiente candidato...`, err?.message);
+        console.warn(`Modelo ${model} con Google Search no disponible (${err?.message}), reintentando sin tool...`);
+        // 2. Fallback de alta resiliencia sin Google Search para no bloquear al usuario por cuota
+        try {
+          aiRes = await ai.models.generateContent({
+            model,
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: imgMime,
+                      data: imgBase64,
+                    },
+                  },
+                  {
+                    text: userPrompt,
+                  },
+                ],
+              },
+            ],
+            config: {
+              systemInstruction,
+              responseMimeType: 'application/json',
+            },
+          });
+          if (aiRes) break;
+        } catch (retryErr: any) {
+          lastAiError = retryErr;
+        }
       }
     }
 
