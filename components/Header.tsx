@@ -91,17 +91,10 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Badges de Confianza */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60 shadow-xs">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               <span>100% Seguro</span>
             </div>
-            <Link
-              href="/admin"
-              className="text-[11px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5"
-              title="Panel Administrativo"
-            >
-              Admin
-            </Link>
           </div>
         </div>
 

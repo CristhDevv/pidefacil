@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateCodOrderStatus } from '@/lib/db';
+import { isAdminAuthenticated } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,6 +8,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isAdminAuthenticated(request)) {
+    return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const orderId = parseInt(id, 10);

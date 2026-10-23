@@ -624,6 +624,148 @@ export async function setAppSetting(key: string, value: string): Promise<boolean
 }
 
 /**
+ * Consulta de productos para el Panel de Gestión Administrativa
+ */
+export async function getAdminProducts(options?: {
+  search?: string;
+  status?: 'todos' | 'activos' | 'inactivos';
+  limit?: number;
+  offset?: number;
+}): Promise<{ products: DbProduct[]; total: number }> {
+  const limit = options?.limit ?? 25;
+  const offset = options?.offset ?? 0;
+  const search = options?.search?.trim() || '';
+  const status = options?.status || 'todos';
+
+  if (isSupabaseConfigured) {
+    try {
+      let query = supabaseAdmin
+        .from('products')
+        .select('id_dropi, name, sku, type, cost_cop, suggested_price_cop, sell_price_cop, stock_real, supplier_name, image_url, categories, display_priority, is_active, description_is_empty, description');
+
+      if (status === 'activos') {
+        query = query.eq('is_active', 1);
+      } else if (status === 'inactivos') {
+        query = query.eq('is_active', 0);
+      }
+
+      if (search) {
+        const isNumeric = /^\d+$/.test(search);
+        if (isNumeric) {
+          query = query.eq('id_dropi', parseInt(search, 10));
+        } else {
+          query = query.ilike('name', `%${search}%`);
+        }
+      }
+
+      const { data, error } = await query
+        .order('display_priority', { ascending: true })
+        .order('stock_real', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (!error && data) {
+        return {
+          products: data.map(formatProductFromSupabase),
+          total: data.length === limit ? offset + limit + 50 : offset + data.length,
+        };
+      }
+    } catch (e) {
+      console.error('Error en Supabase getAdminProducts:', e);
+    }
+  }
+
+  // Fallback SQLite
+  try {
+    const conditions: string[] = ['1=1'];
+    const params: (string | number)[] = [];
+
+    if (status === 'activos') conditions.push('is_active = 1');
+    if (status === 'inactivos') conditions.push('is_active = 0');
+
+    if (search) {
+      const isNumeric = /^\d+$/.test(search);
+      if (isNumeric) {
+        conditions.push('id_dropi = ?');
+        params.push(parseInt(search, 10));
+      } else {
+        conditions.push('name LIKE ?');
+        params.push(`%${search}%`);
+      }
+    }
+
+    const whereClause = conditions.join(' AND ');
+    const products = getSqliteDb()
+      .prepare(`SELECT * FROM products WHERE ${whereClause} ORDER BY display_priority ASC, stock_real DESC LIMIT ? OFFSET ?`)
+      .all(...params, limit, offset) as DbProduct[];
+
+    return {
+      products,
+      total: products.length === limit ? offset + limit + 50 : offset + products.length,
+    };
+  } catch {
+    return { products: [], total: 0 };
+  }
+}
+
+/**
+ * Actualiza atributos de un producto desde el panel administrativo
+ */
+export async function updateProductAdmin(
+  id_dropi: number,
+  updates: { is_active?: number; display_priority?: number; sell_price_cop?: number }
+): Promise<boolean> {
+  const now = new Date().toISOString();
+
+  // Invalidar caché en memoria
+  productMemoryCache.delete(id_dropi);
+
+  if (isSupabaseConfigured) {
+    try {
+      const payload: any = { updated_at: now };
+      if (updates.is_active !== undefined) payload.is_active = updates.is_active;
+      if (updates.display_priority !== undefined) payload.display_priority = updates.display_priority;
+      if (updates.sell_price_cop !== undefined) payload.sell_price_cop = updates.sell_price_cop;
+
+      const { error } = await supabaseAdmin
+        .from('products')
+        .update(payload)
+        .eq('id_dropi', id_dropi);
+
+      if (!error) return true;
+    } catch (e) {
+      console.error('Error actualizando producto en Supabase:', e);
+    }
+  }
+
+  // Fallback SQLite
+  try {
+    const sets: string[] = ['updated_at = ?'];
+    const params: (string | number)[] = [now];
+
+    if (updates.is_active !== undefined) {
+      sets.push('is_active = ?');
+      params.push(updates.is_active);
+    }
+    if (updates.display_priority !== undefined) {
+      sets.push('display_priority = ?');
+      params.push(updates.display_priority);
+    }
+    if (updates.sell_price_cop !== undefined) {
+      sets.push('sell_price_cop = ?');
+      params.push(updates.sell_price_cop);
+    }
+
+    params.push(id_dropi);
+    getSqliteDb()
+      .prepare(`UPDATE products SET ${sets.join(', ')} WHERE id_dropi = ?`)
+      .run(...params);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Checkpoints persistentes de sincronización
  */
 export function getCheckpoint(mode: string) {
