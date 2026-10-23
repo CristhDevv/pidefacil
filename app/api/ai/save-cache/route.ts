@@ -16,6 +16,10 @@ export async function POST(request: NextRequest) {
       angle2Title,
       angle2Desc,
       angle2Image,
+      scene1Data,
+      scene_1_data,
+      scene2Data,
+      scene_2_data,
       copyText,
       previousAngles,
     } = body;
@@ -33,6 +37,8 @@ export async function POST(request: NextRequest) {
       angle_2_title: angle2Title || 'Ángulo 2',
       angle_2_desc: angle2Desc || '',
       angle_2_image: angle2Image,
+      scene_1_data: scene1Data || scene_1_data || null,
+      scene_2_data: scene2Data || scene_2_data || null,
       copy_text: copyText || '',
       previous_angles: Array.isArray(previousAngles) ? previousAngles : [],
     });

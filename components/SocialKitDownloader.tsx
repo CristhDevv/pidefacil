@@ -47,6 +47,8 @@ interface AngleItem {
   title: string;
   description?: string;
   imageDataUrl: string;
+  sceneDataUrl?: string | null;
+  hasAiScene?: boolean;
 }
 
 interface CreativeResponseData {
@@ -55,6 +57,7 @@ interface CreativeResponseData {
   persuasiveCopy: string;
   previousAngles?: string[];
   fromCache?: boolean;
+  usedFallback?: boolean;
 }
 
 export function SocialKitDownloader({
@@ -117,7 +120,7 @@ export function SocialKitDownloader({
     setCurrentStep(1);
     setStepLabel('🔍 Investigando producto y dolores de clientes en internet (Google Search)...');
 
-    // Simulación fluida de pasos mientras responde el backend
+    // Simulación fluida de pasos mientras responde el backend (15-30s)
     const stepTimer1 = setTimeout(() => {
       setCurrentStep(2);
       setStepLabel('🧠 Formulando 2 ángulos psicológicos de venta para Colombia...');
@@ -125,8 +128,12 @@ export function SocialKitDownloader({
 
     const stepTimer2 = setTimeout(() => {
       setCurrentStep(3);
-      setStepLabel('🎨 Generando 2 creativos hiperrealistas limpios con Google AI...');
-    }, 6000);
+      setStepLabel('🎨 Creando escenas publicitarias con IA de Google (sin fondos sucios)...');
+    }, 6500);
+
+    const stepTimer3 = setTimeout(() => {
+      setStepLabel('✨ Iluminando producto y componiendo fotografía publicitaria...');
+    }, 14000);
 
     try {
       const res = await fetch('/api/ai/generate-creatives', {
@@ -143,6 +150,7 @@ export function SocialKitDownloader({
 
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
+      clearTimeout(stepTimer3);
 
       const json = await res.json();
       if (!res.ok || !json.success) {
@@ -155,7 +163,7 @@ export function SocialKitDownloader({
       // Si no vienen pre-renderizados desde caché, renderizar en Canvas con fuentes y emojis nativos
       if (!img1 || !img2) {
         setCurrentStep(3);
-        setStepLabel('🎨 Renderizando anuncios de alta definición en tu pantalla...');
+        setStepLabel('🎨 Renderizando marco tipográfico .900 en alta definición...');
         const imageSrc = json.data.imageUrl || product.image_url || product.gallery?.[0] || '';
 
         img1 = await renderAiCreativeOnCanvas({
@@ -167,6 +175,7 @@ export function SocialKitDownloader({
           duoSavingsCop: json.data.duoSavingsCop || duoSavings,
           selectedVariation,
           angle: json.data.angle1,
+          sceneDataUrl: json.data.angle1.sceneDataUrl || null,
         });
 
         img2 = await renderAiCreativeOnCanvas({
@@ -178,9 +187,10 @@ export function SocialKitDownloader({
           duoSavingsCop: json.data.duoSavingsCop || duoSavings,
           selectedVariation,
           angle: json.data.angle2,
+          sceneDataUrl: json.data.angle2.sceneDataUrl || null,
         });
 
-        // Guardar imágenes nítidas en caché en segundo plano
+        // Guardar imágenes nítidas en caché en segundo plano junto con las escenas
         fetch('/api/ai/save-cache', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -193,26 +203,37 @@ export function SocialKitDownloader({
             angle2Title: json.data.angle2.title,
             angle2Desc: json.data.angle2.subHeadline || json.data.angle2.description,
             angle2Image: img2,
+            scene1Data: json.data.angle1.sceneDataUrl || null,
+            scene2Data: json.data.angle2.sceneDataUrl || null,
             copyText: json.data.persuasiveCopy,
             previousAngles: json.data.previousAngles,
           }),
         }).catch(() => {});
       }
 
+      const hasAiScene1 = Boolean(json.data.angle1.sceneDataUrl);
+      const hasAiScene2 = Boolean(json.data.angle2.sceneDataUrl);
+      const usedFallback = !hasAiScene1 && !hasAiScene2;
+
       setCreativeData({
         angle1: {
           title: json.data.angle1.title,
           description: json.data.angle1.description || json.data.angle1.subHeadline,
           imageDataUrl: img1,
+          sceneDataUrl: json.data.angle1.sceneDataUrl || null,
+          hasAiScene: hasAiScene1,
         },
         angle2: {
           title: json.data.angle2.title,
           description: json.data.angle2.description || json.data.angle2.subHeadline,
           imageDataUrl: img2,
+          sceneDataUrl: json.data.angle2.sceneDataUrl || null,
+          hasAiScene: hasAiScene2,
         },
         persuasiveCopy: json.data.persuasiveCopy,
         previousAngles: json.data.previousAngles,
         fromCache: Boolean(json.fromCache),
+        usedFallback,
       });
 
       if (json.data.previousAngles) {
@@ -232,6 +253,7 @@ export function SocialKitDownloader({
       setIsGenerating(false);
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
+      clearTimeout(stepTimer3);
     }
   };
 
@@ -373,7 +395,7 @@ export function SocialKitDownloader({
                       }`}
                     >
                       <span className="block font-black">Paso 2</span>
-                      2 Ángulos
+                      2 Ángulos IA
                     </div>
                     <div
                       className={`p-2 rounded-xl border text-[11px] ${
@@ -383,7 +405,7 @@ export function SocialKitDownloader({
                       }`}
                     >
                       <span className="block font-black">Paso 3</span>
-                      Imagen 8K
+                      Escena 1:1 + .900
                     </div>
                   </div>
                 </div>
@@ -414,6 +436,16 @@ export function SocialKitDownloader({
               {/* ESTADO 3: CREATIVOS GENERADOS EXITOSAMENTE */}
               {creativeData && !isGenerating && (
                 <>
+                  {/* Banner de Fallback si no se pudo generar la escena IA */}
+                  {creativeData.usedFallback && (
+                    <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3 flex items-center gap-2.5 text-amber-950 text-xs shadow-xs">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <p className="leading-snug">
+                        <strong>Aviso de Escena:</strong> No se pudo generar la escena nueva, usando foto original con marco comercial limpio y precios .900.
+                      </p>
+                    </div>
+                  )}
+
                   {/* Banner de Copiado */}
                   <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-xs">
                     <div className="flex items-center gap-2">
@@ -455,6 +487,16 @@ export function SocialKitDownloader({
                           <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
                             Ángulo 1: Dolor / Transformación
                           </span>
+                          {creativeData.angle1.hasAiScene ? (
+                            <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-full flex items-center gap-1 border border-teal-300">
+                              <Sparkles className="w-2.5 h-2.5 text-teal-600" />
+                              Escena IA
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-300">
+                              Foto Original
+                            </span>
+                          )}
                         </div>
                         <h4 className="text-xs font-black text-slate-900 mb-1">
                           {creativeData.angle1.title}
@@ -495,6 +537,16 @@ export function SocialKitDownloader({
                           <span className="text-[11px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/90 px-2.5 py-0.5 rounded-full">
                             Ángulo 2: Valor Percibido / Abundancia
                           </span>
+                          {creativeData.angle2.hasAiScene ? (
+                            <span className="text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-300">
+                              <Sparkles className="w-2.5 h-2.5 text-amber-600" />
+                              Escena IA
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-300">
+                              Foto Original
+                            </span>
+                          )}
                         </div>
                         <h4 className="text-xs font-black text-slate-900 mb-1">
                           {creativeData.angle2.title}

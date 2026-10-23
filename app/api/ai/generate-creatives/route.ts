@@ -7,10 +7,11 @@ import {
   buildAngleFormulationUserPrompt,
   StrategicFormulationResult,
 } from '@/lib/ai-creative-skill';
-import { compositeAiCreativeImage } from '@/lib/ai-image-compositor';
+import { generateTwoScenes } from '@/lib/ai-scene-generator';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // Helper para descargar imagen y convertirla a Buffer y Base64
 async function fetchImageBuffer(url: string): Promise<{ buffer: Buffer; mimeType: string; base64: string }> {
@@ -99,11 +100,13 @@ export async function POST(request: NextRequest) {
               title: cached.angle_1_title,
               description: cached.angle_1_desc,
               imageDataUrl: cached.angle_1_image,
+              sceneDataUrl: cached.scene_1_data || null,
             },
             angle2: {
               title: cached.angle_2_title,
               description: cached.angle_2_desc,
               imageDataUrl: cached.angle_2_image,
+              sceneDataUrl: cached.scene_2_data || null,
             },
             persuasiveCopy: cached.copy_text,
             previousAngles: cached.previous_angles || [],
@@ -244,7 +247,57 @@ export async function POST(request: NextRequest) {
       throw new Error('La respuesta de Gemini no tuvo el formato JSON esperado.');
     }
 
-    // 5. ETAPA 3: Formulación Estratégica Completa
+    // 5. ETAPA 3: Generación de Escenas Hiperrealistas con Gemini Image Models
+    let scene1DataUrl: string | null = null;
+    let scene1Error: string | null = null;
+    let scene2DataUrl: string | null = null;
+    let scene2Error: string | null = null;
+
+    try {
+      const productCategory = product.categories
+        ? JSON.parse(product.categories)?.[0] || 'General'
+        : 'General';
+
+      const sceneResults = await generateTwoScenes(
+        {
+          apiKey,
+          productImageBase64: imgBase64,
+          productImageMime: imgMime,
+          productName: product.name,
+          category: productCategory,
+        },
+        [
+          {
+            angle: 'dolor',
+            hook: strategicResult.angle1.hookHeadline,
+            sceneBrief: strategicResult.angle1.sceneBrief || strategicResult.angle1.settingDescription,
+          },
+          {
+            angle: 'valor',
+            hook: strategicResult.angle2.hookHeadline,
+            sceneBrief: strategicResult.angle2.sceneBrief || strategicResult.angle2.settingDescription,
+          },
+        ]
+      );
+
+      if (sceneResults[0]?.ok) {
+        scene1DataUrl = `data:image/png;base64,${sceneResults[0].pngBase64}`;
+      } else {
+        scene1Error = sceneResults[0]?.reason || 'No se pudo generar la escena nueva';
+      }
+
+      if (sceneResults[1]?.ok) {
+        scene2DataUrl = `data:image/png;base64,${sceneResults[1].pngBase64}`;
+      } else {
+        scene2Error = sceneResults[1]?.reason || 'No se pudo generar la escena nueva';
+      }
+    } catch (sceneErr: any) {
+      console.warn('Fallo en generación de escenas con IA, continuando con fallback:', sceneErr);
+      scene1Error = sceneErr?.message || 'Error generando escena';
+      scene2Error = sceneErr?.message || 'Error generando escena';
+    }
+
+    // 6. Formulación Estratégica Completa
     const newPreviousAngles = Array.from(
       new Set([
         ...previousAngles,
@@ -270,6 +323,9 @@ export async function POST(request: NextRequest) {
           hookHeadline: strategicResult.angle1.hookHeadline,
           subHeadline: strategicResult.angle1.subHeadline,
           description: strategicResult.angle1.subHeadline,
+          sceneBrief: strategicResult.angle1.sceneBrief,
+          sceneDataUrl: scene1DataUrl,
+          sceneError: scene1Error,
           angleNumber: 1,
           angleType: 'dolor_solucion',
         },
@@ -278,6 +334,9 @@ export async function POST(request: NextRequest) {
           hookHeadline: strategicResult.angle2.hookHeadline,
           subHeadline: strategicResult.angle2.subHeadline,
           description: strategicResult.angle2.subHeadline,
+          sceneBrief: strategicResult.angle2.sceneBrief,
+          sceneDataUrl: scene2DataUrl,
+          sceneError: scene2Error,
           angleNumber: 2,
           angleType: 'valor_percibido',
         },

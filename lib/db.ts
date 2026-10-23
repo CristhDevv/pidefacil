@@ -68,6 +68,8 @@ export interface ProductAiCreative {
   angle_2_title: string;
   angle_2_desc?: string;
   angle_2_image: string; // Base64 o Data URL
+  scene_1_data?: string | null; // Data URL de escena generada por IA
+  scene_2_data?: string | null; // Data URL de escena generada por IA
   copy_text: string;
   previous_angles?: string[];
   created_at?: string;
@@ -131,6 +133,8 @@ export function getSqliteDb() {
           angle_2_title TEXT NOT NULL,
           angle_2_desc TEXT,
           angle_2_image TEXT NOT NULL,
+          scene_1_data TEXT,
+          scene_2_data TEXT,
           copy_text TEXT NOT NULL,
           previous_angles TEXT,
           created_at TEXT NOT NULL
@@ -706,6 +710,8 @@ export async function getAiCreativeCache(
           angle_2_title: data.angle_2_title,
           angle_2_desc: data.angle_2_desc,
           angle_2_image: data.angle_2_image,
+          scene_1_data: data.scene_1_data || null,
+          scene_2_data: data.scene_2_data || null,
           copy_text: data.copy_text,
           previous_angles: Array.isArray(data.previous_angles) ? data.previous_angles : [],
           created_at: data.created_at,
@@ -739,6 +745,8 @@ export async function getAiCreativeCache(
         angle_2_title: row.angle_2_title,
         angle_2_desc: row.angle_2_desc,
         angle_2_image: row.angle_2_image,
+        scene_1_data: row.scene_1_data || null,
+        scene_2_data: row.scene_2_data || null,
         copy_text: row.copy_text,
         previous_angles,
         created_at: row.created_at,
@@ -768,6 +776,8 @@ export async function saveAiCreativeCache(data: ProductAiCreative): Promise<void
         angle_2_title: data.angle_2_title,
         angle_2_desc: data.angle_2_desc || '',
         angle_2_image: data.angle_2_image,
+        scene_1_data: data.scene_1_data || null,
+        scene_2_data: data.scene_2_data || null,
         copy_text: data.copy_text,
         previous_angles: data.previous_angles || [],
         created_at: now,
@@ -782,8 +792,9 @@ export async function saveAiCreativeCache(data: ProductAiCreative): Promise<void
     s.prepare(`
       INSERT INTO product_ai_creatives (
         product_id, combo_type, angle_1_title, angle_1_desc, angle_1_image,
-        angle_2_title, angle_2_desc, angle_2_image, copy_text, previous_angles, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        angle_2_title, angle_2_desc, angle_2_image, scene_1_data, scene_2_data,
+        copy_text, previous_angles, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       data.product_id,
       data.combo_type,
@@ -793,6 +804,8 @@ export async function saveAiCreativeCache(data: ProductAiCreative): Promise<void
       data.angle_2_title,
       data.angle_2_desc || '',
       data.angle_2_image,
+      data.scene_1_data || null,
+      data.scene_2_data || null,
       data.copy_text,
       JSON.stringify(data.previous_angles || []),
       now

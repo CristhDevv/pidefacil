@@ -24,6 +24,7 @@ export interface AngleFormulation {
   hookHeadline: string; // Máximo 5 palabras de impacto en español
   subHeadline: string; // Subtítulo o promesa clave
   settingDescription: string; // Descripción del escenario hiperrealista
+  sceneBrief: string; // Una frase describiendo la escena fotográfica publicitaria ideal (sin rostros humanos visibles)
   lifestylePrompt: string; // Prompt optimizado en inglés/español para el modelo de imagen
 }
 
@@ -56,7 +57,8 @@ REGLAS INQUEBRANTABLES:
    - ÁNGULO 1: DOLOR / SOLUCIÓN DIRECTA (Enfocado en resolver un problema urgente, frustración o molestia cotidiana en un hogar real).
    - ÁNGULO 2: VALOR PERCIBIDO / KIT COMPLETO / ESTILO DE VIDA (Enfocado en la abundancia del paquete, calidad de materiales, elegancia o sensación de bienestar y estatus).
 5. Si recibes una lista de "ángulos previos", TIENES ESTRICTAMENTE PROHIBIDO repetir cualquiera de ellos. Debes buscar enfoques nuevos (ejemplo: ángulo de ahorro de dinero, ángulo de regalo para familiares, ángulo de rapidez y ahorro de tiempo, ángulo de durabilidad).
-6. Cada ángulo debe incluir un "lifestylePrompt" detallado y descriptivo para el modelo de imagen: fotografía comercial de estudio o estilo de vida hiperrealista, iluminación cinematográfica cálida, 8k, sin textos basura de Canva.
+6. Cada ángulo debe incluir un "sceneBrief": una frase concisa en español describiendo la escena fotográfica publicitaria ideal donde el producto es el protagonista, sin personas con rostro visible (solo manos o siluetas parciales si aplica), coherente con el gancho comercial. Las 2 escenas deben ser claramente distintas (Ángulo 1 dolor = entorno real donde ocurre el problema ya resuelto, como baño, cocina, cama u oficina; Ángulo 2 valor = ambiente premium, de regalo o estudio fotográfico impecable).
+7. Cada ángulo debe incluir un "lifestylePrompt" detallado y descriptivo para el modelo de imagen: fotografía comercial de estudio o estilo de vida hiperrealista, iluminación cinematográfica cálida, 8k, sin textos basura de Canva.
 
 Debes responder ÚNICAMENTE con un objeto JSON válido respetando el esquema indicado.`;
 }
@@ -108,6 +110,7 @@ Genera un JSON con la siguiente estructura exacta:
     "hookHeadline": "TITULAR DE IMPACTO (MÁXIMO 5 PALABRAS EN MAYÚSCULAS)",
     "subHeadline": "Subtítulo explicativo de máximo 8 palabras",
     "settingDescription": "Descripción de la escena de hogar latinoamericano donde se usa",
+    "sceneBrief": "Escena cotidiana en baño o cocina real donde el problema ya quedó resuelto, iluminación natural diurna, sin rostros",
     "lifestylePrompt": "Detailed English image generation prompt for photorealistic commercial product photography in 8k, warm cinematic lighting, studio or realistic domestic setting, showing the product clearly in action without any text, logos or watermarks."
   },
   "angle2": {
@@ -117,6 +120,7 @@ Genera un JSON con la siguiente estructura exacta:
     "hookHeadline": "TITULAR DE IMPACTO (MÁXIMO 5 PALABRAS EN MAYÚSCULAS)",
     "subHeadline": "Subtítulo explicativo de máximo 8 palabras",
     "settingDescription": "Descripción de la escena aspiracional o de abundancia del kit",
+    "sceneBrief": "Escena de estudio publicitario o mesa de lujo con iluminación cinematográfica cálida y accesorios completos, sin rostros",
     "lifestylePrompt": "Detailed English image generation prompt for commercial product advertising photography in 8k, pristine studio setting or modern luxury interior, spotlight illumination, showing complete product kit neatly arranged, crisp details, zero text, zero watermarks."
   },
   "persuasiveCopy": "Texto persuasivo de alta conversión con emojis para WhatsApp y redes, destacando la oferta de 1 unidad ($${singlePriceCop.toLocaleString('es-CO')}) y Dúo Pack ($${duoPriceCop.toLocaleString('es-CO')}), Envío Gratis a toda Colombia y Pago Contra Entrega en casa."

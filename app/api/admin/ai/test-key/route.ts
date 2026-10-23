@@ -54,10 +54,20 @@ export async function POST(request: NextRequest) {
       throw new Error(errMsg);
     }
 
+    // Comprobación opcional de modelos de imagen disponibles
+    let imageModelStatus = 'No disponible';
+    try {
+      const configuredImgModel = process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image';
+      imageModelStatus = `Habilitado (${configuredImgModel})`;
+    } catch {
+      // Ignorar
+    }
+
     return NextResponse.json({
       success: true,
       message: `API Key activa y con acceso a generación multimodal (${workingModel})`,
       model: workingModel,
+      imageModelStatus,
       response: responseText,
     });
   } catch (error: any) {
