@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatCOP } from '@/config/pricing';
+import { getProductDisplayImageUrl } from '@/lib/image-url';
 import { ImageModerationTab } from '@/components/admin/ImageModerationTab';
 import {
   Package,
@@ -1099,7 +1100,7 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
                         <div className="relative w-12 h-12 rounded-xl bg-slate-50 overflow-hidden flex-shrink-0 border border-slate-100">
                           {p.image_url ? (
                             <Image
-                              src={p.image_url}
+                              src={getProductDisplayImageUrl(p)}
                               alt={p.name}
                               fill
                               unoptimized

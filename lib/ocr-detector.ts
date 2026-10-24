@@ -1,4 +1,4 @@
-import { createWorker, Worker } from 'tesseract.js';
+import { createWorker, createScheduler, Worker, Scheduler } from 'tesseract.js';
 import sharp from 'sharp';
 
 // Patrones comerciales requeridos:
@@ -43,38 +43,45 @@ export interface ModerationDecision {
   active_image_url: string;
 }
 
-let sharedWorker: Worker | null = null;
-let isInitializingWorker = false;
+let sharedScheduler: Scheduler | null = null;
+let isInitializingScheduler = false;
 
-// Inicializa o reutiliza el Worker de Tesseract para máximo rendimiento
-export async function getSharedOcrWorker(): Promise<Worker> {
-  if (sharedWorker) return sharedWorker;
+// Inicializa o reutiliza el Scheduler de Tesseract con 2 workers en paralelo para máximo rendimiento
+export async function getSharedOcrScheduler(): Promise<Scheduler> {
+  if (sharedScheduler) return sharedScheduler;
 
-  if (isInitializingWorker) {
-    while (isInitializingWorker) {
+  if (isInitializingScheduler) {
+    while (isInitializingScheduler) {
       await new Promise((r) => setTimeout(r, 100));
     }
-    if (sharedWorker) return sharedWorker;
+    if (sharedScheduler) return sharedScheduler;
   }
 
-  isInitializingWorker = true;
+  isInitializingScheduler = true;
   try {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-    sharedWorker = await createWorker('spa', 1, {
+    const scheduler = createScheduler();
+    const w1 = await createWorker('spa', 1, {
       cachePath: './data/tesseract-cache',
     });
-    return sharedWorker;
+    const w2 = await createWorker('spa', 1, {
+      cachePath: './data/tesseract-cache',
+    });
+    scheduler.addWorker(w1);
+    scheduler.addWorker(w2);
+    sharedScheduler = scheduler;
+    return sharedScheduler;
   } finally {
-    isInitializingWorker = false;
+    isInitializingScheduler = false;
   }
 }
 
 export async function terminateOcrWorker(): Promise<void> {
-  if (sharedWorker) {
+  if (sharedScheduler) {
     try {
-      await sharedWorker.terminate();
+      await sharedScheduler.terminate();
     } catch {}
-    sharedWorker = null;
+    sharedScheduler = null;
   }
 }
 
@@ -113,10 +120,10 @@ export async function detectBurnedTextInImage(imageBuffer: Buffer): Promise<OcrD
 
   let ret: any;
   try {
-    const worker = await getSharedOcrWorker();
-    ret = await worker.recognize(normalizedBuf, {}, { blocks: true });
+    const scheduler = await getSharedOcrScheduler();
+    ret = await scheduler.addJob('recognize', normalizedBuf, {}, { blocks: true });
   } catch (workerErr: any) {
-    console.warn('[OCR] Error en reconocimiento Tesseract, reiniciando worker:', workerErr?.message || workerErr);
+    console.warn('[OCR] Error en reconocimiento Tesseract, reiniciando scheduler:', workerErr?.message || workerErr);
     await terminateOcrWorker();
     return {
       hasBurnedPrice: false,

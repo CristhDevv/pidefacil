@@ -10,6 +10,7 @@
  *    c) Si está en el centro sin galería -> Desactiva el producto
  * 4. Prioriza productos vendibles (stock_real > 0 y costo válido)
  * 5. Reanudable: no reprocesa productos ya moderados
+ * 6. Concurrencia optimizada: 2 workers Tesseract en paralelo con Scheduler
  */
 
 import fs from 'fs';
@@ -105,6 +106,172 @@ async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   }
 }
 
+async function processSingleProduct(prod: any, stats: JobStats, itemIndex: number): Promise<void> {
+  stats.total_reviewed++;
+  stats.last_id_dropi = prod.id_dropi;
+
+  const shortName = prod.name.length > 36 ? `${prod.name.slice(0, 33)}...` : prod.name;
+  const isVendible = prod.stock_real > 0 && prod.cost_cop > 0;
+  const tag = isVendible ? `[Vendible Stock:${prod.stock_real}]` : `[Catálogo]`;
+
+  try {
+    // 1. Descargar imagen principal
+    const primaryBuf = await fetchImageBuffer(prod.image_url);
+    if (!primaryBuf) {
+      console.warn(`[#${itemIndex}] ID ${prod.id_dropi} ${tag} ⚠️ Foto principal no disponible en CDN, buscando en galería...`);
+      stats.total_errors++;
+
+      // Intentar rescatar con imagen de galería
+      let galleryUrls: string[] = [];
+      try {
+        if (prod.gallery) {
+          const parsed = JSON.parse(prod.gallery);
+          if (Array.isArray(parsed)) {
+            galleryUrls = parsed.filter((u: string) => u && typeof u === 'string' && u !== prod.image_url);
+          }
+        }
+      } catch {}
+
+      let rescuedGalleryUrl: string | null = null;
+      for (const gUrl of galleryUrls.slice(0, 3)) {
+        const gBuf = await fetchImageBuffer(gUrl);
+        if (gBuf) {
+          const gOcr = await detectBurnedTextInImage(gBuf);
+          if (!gOcr.hasBurnedPrice) {
+            rescuedGalleryUrl = gUrl;
+            break;
+          }
+        }
+      }
+
+      if (rescuedGalleryUrl) {
+        stats.total_marked++;
+        stats.total_swapped++;
+        await saveProductImageModeration({
+          id_dropi: prod.id_dropi,
+          has_burned_price: 1,
+          detected_text: 'FOTO_PRINCIPAL_ROTA_REEMPLAZADA_POR_GALERIA',
+          detected_patterns: ['IMAGEN_ROTA_DROP_S3'],
+          line_details: [],
+          clean_gallery_urls: [rescuedGalleryUrl],
+          correction_applied: 'swapped_gallery',
+          crop_top_pct: 0,
+          crop_bottom_pct: 0,
+          original_image_url: prod.image_url,
+          active_image_url: rescuedGalleryUrl,
+          review_status: 'pending',
+          analyzed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        console.log(`[#${itemIndex}] ID ${prod.id_dropi} ${tag} "${shortName}" -> 🔄 FOTO ROTA RESCATADA CON GALERÍA LIMPIA`);
+      } else {
+        await saveProductImageModeration({
+          id_dropi: prod.id_dropi,
+          has_burned_price: 0,
+          detected_text: 'ERROR_DESCARGA_CDN_404',
+          detected_patterns: [],
+          line_details: [],
+          clean_gallery_urls: [],
+          correction_applied: 'none',
+          crop_top_pct: 0,
+          crop_bottom_pct: 0,
+          original_image_url: prod.image_url,
+          active_image_url: prod.image_url,
+          review_status: 'pending',
+          analyzed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+      return;
+    }
+
+    // 2. Ejecutar OCR en imagen principal
+    const primaryOcr = await detectBurnedTextInImage(primaryBuf);
+
+    const cleanGalleryUrls: string[] = [];
+
+    // 3. Si la foto principal tiene precio quemado, verificar galería limpia (Regla 2a)
+    if (primaryOcr.hasBurnedPrice) {
+      let galleryUrls: string[] = [];
+      try {
+        if (prod.gallery) {
+          const parsed = JSON.parse(prod.gallery);
+          if (Array.isArray(parsed)) {
+            galleryUrls = parsed.filter((u: string) => u && typeof u === 'string' && u !== prod.image_url);
+          }
+        }
+      } catch {}
+
+      for (const gUrl of galleryUrls.slice(0, 3)) {
+        const gBuf = await fetchImageBuffer(gUrl);
+        if (gBuf) {
+          const gOcr = await detectBurnedTextInImage(gBuf);
+          if (!gOcr.hasBurnedPrice) {
+            cleanGalleryUrls.push(gUrl);
+            break;
+          }
+        }
+      }
+    }
+
+    // 4. Decisión de corrección automática
+    const decision = determineAutomaticCorrection({
+      primaryOcr,
+      originalImageUrl: prod.image_url,
+      cleanGalleryUrls,
+    });
+
+    // 5. Persistir en Base de Datos (SQLite + Supabase)
+    const modRecord: DbProductImageModeration = {
+      id_dropi: prod.id_dropi,
+      has_burned_price: decision.has_burned_price,
+      detected_text: decision.detected_text,
+      detected_patterns: decision.detected_patterns,
+      line_details: decision.line_details,
+      clean_gallery_urls: decision.clean_gallery_urls,
+      correction_applied: decision.correction_applied,
+      crop_top_pct: decision.crop_top_pct,
+      crop_bottom_pct: decision.crop_bottom_pct,
+      original_image_url: prod.image_url,
+      active_image_url: decision.active_image_url,
+      review_status: 'pending',
+      analyzed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    await saveProductImageModeration(modRecord);
+
+    // 6. Actualizar métricas y loguear acción
+    if (!decision.has_burned_price) {
+      stats.total_clean++;
+      console.log(`[#${itemIndex}] ID ${prod.id_dropi} ${tag} "${shortName}" -> ✅ LIMPIA`);
+    } else {
+      stats.total_marked++;
+      const patternsStr = decision.detected_patterns.slice(0, 3).join(', ');
+
+      if (decision.correction_applied === 'swapped_gallery') {
+        stats.total_swapped++;
+        console.log(`[#${itemIndex}] ID ${prod.id_dropi} ${tag} "${shortName}" -> 🔄 GALERÍA LIMPIA DETECTADA (Patrones: [${patternsStr}])`);
+      } else if (decision.correction_applied === 'crop_top') {
+        stats.total_cropped++;
+        console.log(`[#${itemIndex}] ID ${prod.id_dropi} ${tag} "${shortName}" -> ✂️ RECORTE SUPERIOR ${decision.crop_top_pct}% (Patrones: [${patternsStr}])`);
+      } else if (decision.correction_applied === 'crop_bottom') {
+        stats.total_cropped++;
+        console.log(`[#${itemIndex}] ID ${prod.id_dropi} ${tag} "${shortName}" -> ✂️ RECORTE INFERIOR ${decision.crop_bottom_pct}% (Patrones: [${patternsStr}])`);
+      } else if (decision.correction_applied === 'crop_both') {
+        stats.total_cropped++;
+        console.log(`[#${itemIndex}] ID ${prod.id_dropi} ${tag} "${shortName}" -> ✂️ RECORTE SUPERIOR ${decision.crop_top_pct}% + INFERIOR ${decision.crop_bottom_pct}%`);
+      } else if (decision.correction_applied === 'deactivated') {
+        stats.total_deactivated++;
+        console.log(`[#${itemIndex}] ID ${prod.id_dropi} ${tag} "${shortName}" -> 🚫 DESACTIVADO (Texto en el centro: [${patternsStr}])`);
+      }
+    }
+  } catch (err: any) {
+    console.error(`Error procesando producto ${prod.id_dropi}:`, err.message);
+    stats.total_errors++;
+  }
+}
+
 async function runModerationJob() {
   console.log('================================================================');
   console.log('🤖 INICIANDO JOB DE DETECCIÓN Y CORRECCIÓN DE PRECIOS QUEMADOS');
@@ -122,226 +289,68 @@ async function runModerationJob() {
     }
   }
 
-  // Consulta reanudable priorizando vendibles:
-  // 1. Vendibles (stock > 0 y cost > 0)
-  // 2. Mayor stock primero
-  // 3. Excluyendo productos ya analizados en product_image_moderation
-  const limitClause = maxProducts !== Infinity ? `LIMIT ${maxProducts}` : '';
-  const query = `
-    SELECT
-      id_dropi,
-      name,
-      supplier_name,
-      cost_cop,
-      sell_price_cop,
-      stock_real,
-      image_url,
-      gallery,
-      is_active
+  const countRow = db.prepare(`
+    SELECT count(*) as c
     FROM products
     WHERE id_dropi NOT IN (SELECT id_dropi FROM product_image_moderation)
       AND is_active = 1
       AND image_url IS NOT NULL
       AND TRIM(image_url) != ''
-    ORDER BY
-      (CASE WHEN stock_real > 0 AND cost_cop > 0 THEN 0 ELSE 1 END) ASC,
-      stock_real DESC,
-      id_dropi ASC
-    ${limitClause}
-  `;
-
-  const pendingProducts = db.prepare(query).all() as any[];
-  const totalPending = pendingProducts.length;
+  `).get() as any;
+  const totalPending = countRow?.c || 0;
 
   console.log(`📦 Productos pendientes por analizar: ${totalPending}`);
   console.log(`🎯 Meta de este ciclo: ${maxProducts === Infinity ? 'Todos' : maxProducts} productos`);
   console.log(`📊 Acumulado previo: ${stats.total_reviewed} revisados, ${stats.total_marked} marcados\n`);
 
   let processedInThisRun = 0;
+  const BATCH_SIZE = 50;
 
-  for (const prod of pendingProducts) {
-    if (processedInThisRun >= maxProducts) {
-      console.log(`🛑 Límite alcanzado (${maxProducts} productos). Pausando job.`);
+  while (processedInThisRun < maxProducts) {
+    const toFetch = Math.min(BATCH_SIZE, maxProducts - processedInThisRun);
+    const batch = db.prepare(`
+      SELECT
+        id_dropi,
+        name,
+        supplier_name,
+        cost_cop,
+        sell_price_cop,
+        stock_real,
+        image_url,
+        gallery,
+        is_active
+      FROM products
+      WHERE id_dropi NOT IN (SELECT id_dropi FROM product_image_moderation)
+        AND is_active = 1
+        AND image_url IS NOT NULL
+        AND TRIM(image_url) != ''
+      ORDER BY
+        (CASE WHEN stock_real > 0 AND cost_cop > 0 THEN 0 ELSE 1 END) ASC,
+        stock_real DESC,
+        id_dropi ASC
+      LIMIT ?
+    `).all(toFetch) as any[];
+
+    if (!batch || batch.length === 0) {
+      console.log('✅ ¡No quedan productos pendientes por analizar!');
       break;
     }
 
-    processedInThisRun++;
-    stats.total_reviewed++;
-    stats.last_id_dropi = prod.id_dropi;
+    // Procesar en pares de 2 en paralelo aprovechando los 2 workers de Tesseract
+    for (let i = 0; i < batch.length; i += 2) {
+      if (processedInThisRun >= maxProducts) break;
+      const pair = batch.slice(i, i + 2);
+      const currentStart = stats.total_reviewed;
+      await Promise.all(pair.map((p, pIdx) => processSingleProduct(p, stats, currentStart + pIdx + 1)));
+      processedInThisRun += pair.length;
 
-    const shortName = prod.name.length > 36 ? `${prod.name.slice(0, 33)}...` : prod.name;
-    const isVendible = prod.stock_real > 0 && prod.cost_cop > 0;
-    const tag = isVendible ? `[Vendible Stock:${prod.stock_real}]` : `[Catálogo]`;
+      saveState(stats);
 
-    try {
-      // 1. Descargar imagen principal
-      const primaryBuf = await fetchImageBuffer(prod.image_url);
-      if (!primaryBuf) {
-        console.warn(`[#${stats.total_reviewed}] ID ${prod.id_dropi} ${tag} ⚠️ Foto principal no disponible en CDN, buscando en galería...`);
-        stats.total_errors++;
-
-        // Intentar rescatar con imagen de galería
-        let galleryUrls: string[] = [];
-        try {
-          if (prod.gallery) {
-            const parsed = JSON.parse(prod.gallery);
-            if (Array.isArray(parsed)) {
-              galleryUrls = parsed.filter((u: string) => u && typeof u === 'string' && u !== prod.image_url);
-            }
-          }
-        } catch {}
-
-        let rescuedGalleryUrl: string | null = null;
-        for (const gUrl of galleryUrls.slice(0, 3)) {
-          const gBuf = await fetchImageBuffer(gUrl);
-          if (gBuf) {
-            const gOcr = await detectBurnedTextInImage(gBuf);
-            if (!gOcr.hasBurnedPrice) {
-              rescuedGalleryUrl = gUrl;
-              break;
-            }
-          }
-        }
-
-        if (rescuedGalleryUrl) {
-          stats.total_marked++;
-          stats.total_swapped++;
-          await saveProductImageModeration({
-            id_dropi: prod.id_dropi,
-            has_burned_price: 1,
-            detected_text: 'FOTO_PRINCIPAL_ROTA_REEMPLAZADA_POR_GALERIA',
-            detected_patterns: ['IMAGEN_ROTA_DROP_S3'],
-            line_details: [],
-            clean_gallery_urls: [rescuedGalleryUrl],
-            correction_applied: 'swapped_gallery',
-            crop_top_pct: 0,
-            crop_bottom_pct: 0,
-            original_image_url: prod.image_url,
-            active_image_url: rescuedGalleryUrl,
-            review_status: 'pending',
-            analyzed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-          console.log(`[#${stats.total_reviewed}] ID ${prod.id_dropi} ${tag} "${shortName}" -> 🔄 FOTO ROTA RESCATADA CON GALERÍA LIMPIA`);
-        } else {
-          // Marcar como procesado para que el job continúe avanzando sin atascarse
-          await saveProductImageModeration({
-            id_dropi: prod.id_dropi,
-            has_burned_price: 0,
-            detected_text: 'ERROR_DESCARGA_CDN_404',
-            detected_patterns: [],
-            line_details: [],
-            clean_gallery_urls: [],
-            correction_applied: 'none',
-            crop_top_pct: 0,
-            crop_bottom_pct: 0,
-            original_image_url: prod.image_url,
-            active_image_url: prod.image_url,
-            review_status: 'pending',
-            analyzed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-        }
-        continue;
-      }
-
-      // 2. Ejecutar OCR en imagen principal
-      const primaryOcr = await detectBurnedTextInImage(primaryBuf);
-
-      const cleanGalleryUrls: string[] = [];
-
-      // 3. Si la foto principal tiene precio quemado, verificar si alguna foto de galería está limpia (Regla 2a)
-      if (primaryOcr.hasBurnedPrice) {
-        let galleryUrls: string[] = [];
-        try {
-          if (prod.gallery) {
-            const parsed = JSON.parse(prod.gallery);
-            if (Array.isArray(parsed)) {
-              galleryUrls = parsed.filter((u: string) => u && typeof u === 'string' && u !== prod.image_url);
-            }
-          }
-        } catch {}
-
-        // Probar hasta 3 imágenes de galería
-        for (const gUrl of galleryUrls.slice(0, 3)) {
-          const gBuf = await fetchImageBuffer(gUrl);
-          if (gBuf) {
-            const gOcr = await detectBurnedTextInImage(gBuf);
-            if (!gOcr.hasBurnedPrice) {
-              cleanGalleryUrls.push(gUrl);
-              break; // Encontramos una limpia, suficiente para la regla 2a
-            }
-          }
-        }
-      }
-
-      // 4. Tomar decisión de corrección automática
-      const decision = determineAutomaticCorrection({
-        primaryOcr,
-        originalImageUrl: prod.image_url,
-        cleanGalleryUrls,
-      });
-
-      // 5. Persistir en Base de Datos (SQLite + Supabase)
-      const modRecord: DbProductImageModeration = {
-        id_dropi: prod.id_dropi,
-        has_burned_price: decision.has_burned_price,
-        detected_text: decision.detected_text,
-        detected_patterns: decision.detected_patterns,
-        line_details: decision.line_details,
-        clean_gallery_urls: decision.clean_gallery_urls,
-        correction_applied: decision.correction_applied,
-        crop_top_pct: decision.crop_top_pct,
-        crop_bottom_pct: decision.crop_bottom_pct,
-        original_image_url: prod.image_url,
-        active_image_url: decision.active_image_url,
-        review_status: 'pending',
-        analyzed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      await saveProductImageModeration(modRecord);
-
-      // 6. Actualizar métricas y loguear acción
-      if (!decision.has_burned_price) {
-        stats.total_clean++;
-        console.log(`[#${stats.total_reviewed}] ID ${prod.id_dropi} ${tag} "${shortName}" -> ✅ LIMPIA`);
-      } else {
-        stats.total_marked++;
-        const patternsStr = decision.detected_patterns.slice(0, 3).join(', ');
-
-        if (decision.correction_applied === 'swapped_gallery') {
-          stats.total_swapped++;
-          console.log(`[#${stats.total_reviewed}] ID ${prod.id_dropi} ${tag} "${shortName}" -> 🔄 GALERÍA LIMPIA DETECTADA (Patrones: [${patternsStr}])`);
-        } else if (decision.correction_applied === 'crop_top') {
-          stats.total_cropped++;
-          console.log(`[#${stats.total_reviewed}] ID ${prod.id_dropi} ${tag} "${shortName}" -> ✂️ RECORTE SUPERIOR ${decision.crop_top_pct}% (Patrones: [${patternsStr}])`);
-        } else if (decision.correction_applied === 'crop_bottom') {
-          stats.total_cropped++;
-          console.log(`[#${stats.total_reviewed}] ID ${prod.id_dropi} ${tag} "${shortName}" -> ✂️ RECORTE INFERIOR ${decision.crop_bottom_pct}% (Patrones: [${patternsStr}])`);
-        } else if (decision.correction_applied === 'crop_both') {
-          stats.total_cropped++;
-          console.log(`[#${stats.total_reviewed}] ID ${prod.id_dropi} ${tag} "${shortName}" -> ✂️ RECORTE SUPERIOR ${decision.crop_top_pct}% + INFERIOR ${decision.crop_bottom_pct}%`);
-        } else if (decision.correction_applied === 'deactivated') {
-          stats.total_deactivated++;
-          console.log(`[#${stats.total_reviewed}] ID ${prod.id_dropi} ${tag} "${shortName}" -> 🚫 DESACTIVADO (Texto en el centro: [${patternsStr}])`);
-        }
-      }
-
-      // Guardar estado cada 5 productos
-      if (processedInThisRun % 5 === 0) {
-        saveState(stats);
-      }
-
-      // Resumen visual en consola cada 10 productos
-      if (processedInThisRun % 10 === 0) {
+      if (processedInThisRun % 10 === 0 || processedInThisRun === maxProducts) {
         console.log(`----------------------------------------------------------------`);
         console.log(`📊 AVANCE: ${stats.total_reviewed} analizados | ${stats.total_clean} limpios | ⚠️ ${stats.total_marked} marcados (${stats.total_swapped} reemplazados por galería, ${stats.total_cropped} recortados, ${stats.total_deactivated} desactivados)`);
         console.log(`----------------------------------------------------------------\n`);
       }
-    } catch (err: any) {
-      console.error(`Error procesando producto ${prod.id_dropi}:`, err.message);
-      stats.total_errors++;
     }
   }
 
