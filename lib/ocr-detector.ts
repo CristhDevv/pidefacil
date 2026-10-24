@@ -82,14 +82,53 @@ export async function terminateOcrWorker(): Promise<void> {
  * Escanea un buffer de imagen con Tesseract OCR y busca patrones comerciales y sus posiciones verticales
  */
 export async function detectBurnedTextInImage(imageBuffer: Buffer): Promise<OcrDetectionResult> {
-  const meta = await sharp(imageBuffer).metadata();
-  const width = meta.width || 1000;
-  const height = meta.height || 1000;
+  // Convertir y normalizar a PNG estándar para evitar fallos de decodificación en Leptonica/Tesseract (WebP corruptos, GIFs animados, etc.)
+  let normalizedBuf: Buffer;
+  let width = 1000;
+  let height = 1000;
 
-  const worker = await getSharedOcrWorker();
-  const ret = await worker.recognize(imageBuffer, {}, { blocks: true });
+  try {
+    const sharpInstance = sharp(imageBuffer, { failOn: 'none' });
+    const meta = await sharpInstance.metadata();
+    width = meta.width || 1000;
+    height = meta.height || 1000;
 
-  const fullText = (ret.data.text || '').trim();
+    // Normalizar a PNG limpio, redimensionando suavemente si es gigantesca (> 1600px) para acelerar OCR
+    let pipeline = sharpInstance;
+    if (width > 1600 || height > 1600) {
+      pipeline = pipeline.resize(1600, 1600, { fit: 'inside' });
+    }
+    normalizedBuf = await pipeline.png().toBuffer();
+  } catch (err: any) {
+    console.warn('[OCR] Imagen corrupta o ilegible por Sharp:', err?.message || err);
+    return {
+      hasBurnedPrice: false,
+      detectedText: '',
+      detectedPatterns: [],
+      matchedLines: [],
+      imageWidth: 0,
+      imageHeight: 0,
+    };
+  }
+
+  let ret: any;
+  try {
+    const worker = await getSharedOcrWorker();
+    ret = await worker.recognize(normalizedBuf, {}, { blocks: true });
+  } catch (workerErr: any) {
+    console.warn('[OCR] Error en reconocimiento Tesseract, reiniciando worker:', workerErr?.message || workerErr);
+    await terminateOcrWorker();
+    return {
+      hasBurnedPrice: false,
+      detectedText: '',
+      detectedPatterns: [],
+      matchedLines: [],
+      imageWidth: width,
+      imageHeight: height,
+    };
+  }
+
+  const fullText = (ret?.data?.text || '').trim();
   const matchedLines: LineMatch[] = [];
   const allDetectedPatterns: Set<string> = new Set();
 

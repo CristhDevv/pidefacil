@@ -23,6 +23,14 @@ dotenv.config();
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
+process.on('uncaughtException', (err) => {
+  console.warn('[SUPERVISOR] Advertencia de excepción no capturada (recuperando):', err?.message || err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.warn('[SUPERVISOR] Rechazo asíncrono no capturado (recuperando):', reason);
+});
+
 interface JobStats {
   total_reviewed: number;
   total_clean: number;
