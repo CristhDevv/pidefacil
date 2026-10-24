@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { formatCOP, calculateDuoPrice } from '@/config/pricing';
 import { getVariationLabel } from '@/lib/variations';
 import { detectPackOfferInfo } from '@/lib/pack-detector';
+import { getProductDisplayImageUrl } from '@/lib/image-url';
 import { CodCheckoutModal } from '@/components/CodCheckoutModal';
 import { OrderSuccessModal } from '@/components/OrderSuccessModal';
 import {
@@ -93,11 +94,10 @@ export default function ProductDetailPage() {
     );
   }
 
+  const primaryDisplayImage = getProductDisplayImageUrl(product);
   const images = product.gallery && product.gallery.length > 0
-    ? product.gallery
-    : product.image_url
-    ? [product.image_url]
-    : ['/placeholder.png'];
+    ? [primaryDisplayImage, ...product.gallery.filter((g: string) => g !== product.image_url)]
+    : [primaryDisplayImage];
 
   const variations = product.variations || [];
   const packInfo = detectPackOfferInfo(product.name);

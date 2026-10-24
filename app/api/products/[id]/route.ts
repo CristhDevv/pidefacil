@@ -50,6 +50,8 @@ export async function GET(
           supplier_name: p.supplier_name,
           supplier_badge: p.supplier_badge,
           image_url: p.image_url,
+          crop_top_pct: p.crop_top_pct || 0,
+          crop_bottom_pct: p.crop_bottom_pct || 0,
           gallery,
           variations,
           description: p.description,

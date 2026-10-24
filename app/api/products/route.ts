@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
         stock_real: p.stock_real,
         supplier_name: p.supplier_name,
         image_url: p.image_url,
+        crop_top_pct: p.crop_top_pct || 0,
+        crop_bottom_pct: p.crop_bottom_pct || 0,
         categories: p.categories ? JSON.parse(p.categories) : [],
       };
     });

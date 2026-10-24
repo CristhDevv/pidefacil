@@ -37,10 +37,29 @@ export interface DbProduct {
   needs_review: number; // 0 or 1
   missing_sweeps_count: number;
   deactivation_reason: string | null;
+  crop_top_pct?: number | null;
+  crop_bottom_pct?: number | null;
   first_seen_at: string;
   last_seen_at: string;
   updated_at: string;
   raw?: string | null; // JSON
+}
+
+export interface DbProductImageModeration {
+  id_dropi: number;
+  has_burned_price: number; // 0 or 1
+  detected_text: string | null;
+  detected_patterns: string[]; // parsed array
+  line_details?: any[];
+  clean_gallery_urls: string[]; // parsed array
+  correction_applied: 'none' | 'swapped_gallery' | 'crop_top' | 'crop_bottom' | 'crop_both' | 'deactivated';
+  crop_top_pct: number;
+  crop_bottom_pct: number;
+  original_image_url: string | null;
+  active_image_url: string | null;
+  review_status: 'pending' | 'approved' | 'reverted';
+  analyzed_at: string;
+  updated_at: string;
 }
 
 export interface DbProductChangeHistory {
@@ -179,12 +198,14 @@ function formatProductFromSupabase(row: any): DbProduct {
     is_active: Number(row.is_active ?? 1),
     needs_review: Number(row.needs_review || 0),
     description_is_empty: Number(row.description_is_empty || 0),
+    crop_top_pct: Number(row.crop_top_pct || 0),
+    crop_bottom_pct: Number(row.crop_bottom_pct || 0),
   };
 }
 
 // Columnas ligeras para cards de producto (evita descargar 100KB+ de HTML y JSON crudo por producto)
 const CARD_COLUMNS =
-  'id_dropi, name, sku, type, cost_cop, suggested_price_cop, sell_price_cop, stock_real, supplier_name, image_url, categories, display_priority';
+  'id_dropi, name, sku, type, cost_cop, suggested_price_cop, sell_price_cop, stock_real, supplier_name, image_url, categories, display_priority, crop_top_pct, crop_bottom_pct';
 
 // Caché en memoria para fichas individuales de producto (PDP) con TTL de 5 minutos
 interface CachedProduct {
@@ -1157,3 +1178,479 @@ export function applySoftDeactivationRule(seenDropiIds: Set<number>): {
   tx();
   return { incremented, deactivated };
 }
+
+// ------------------------------------------------------------------------------
+// MODERACIÓN DE FOTOS Y DETECCIÓN DE PRECIOS QUEMADOS (OCR)
+// ------------------------------------------------------------------------------
+
+/**
+ * Guarda o actualiza un registro de moderación de imagen OCR (Supabase + SQLite)
+ * y actualiza de forma atómica el estado del producto (crop_top_pct, crop_bottom_pct, image_url o desactivación).
+ */
+export async function saveProductImageModeration(item: DbProductImageModeration): Promise<boolean> {
+  const now = new Date().toISOString();
+  const patternsJson = JSON.stringify(item.detected_patterns || []);
+  const lineDetailsJson = JSON.stringify(item.line_details || []);
+  const cleanGalleryJson = JSON.stringify(item.clean_gallery_urls || []);
+
+  // 1. Actualizar SQLite
+  try {
+    const s = getSqliteDb();
+    s.prepare(`
+      INSERT INTO product_image_moderation (
+        id_dropi, has_burned_price, detected_text, detected_patterns, line_details,
+        clean_gallery_urls, correction_applied, crop_top_pct, crop_bottom_pct,
+        original_image_url, active_image_url, review_status, analyzed_at, updated_at
+      ) VALUES (
+        @id_dropi, @has_burned_price, @detected_text, @detected_patterns, @line_details,
+        @clean_gallery_urls, @correction_applied, @crop_top_pct, @crop_bottom_pct,
+        @original_image_url, @active_image_url, @review_status, @analyzed_at, @updated_at
+      )
+      ON CONFLICT(id_dropi) DO UPDATE SET
+        has_burned_price = excluded.has_burned_price,
+        detected_text = excluded.detected_text,
+        detected_patterns = excluded.detected_patterns,
+        line_details = excluded.line_details,
+        clean_gallery_urls = excluded.clean_gallery_urls,
+        correction_applied = excluded.correction_applied,
+        crop_top_pct = excluded.crop_top_pct,
+        crop_bottom_pct = excluded.crop_bottom_pct,
+        original_image_url = excluded.original_image_url,
+        active_image_url = excluded.active_image_url,
+        review_status = excluded.review_status,
+        analyzed_at = excluded.analyzed_at,
+        updated_at = excluded.updated_at
+    `).run({
+      id_dropi: item.id_dropi,
+      has_burned_price: item.has_burned_price ? 1 : 0,
+      detected_text: item.detected_text || null,
+      detected_patterns: patternsJson,
+      line_details: lineDetailsJson,
+      clean_gallery_urls: cleanGalleryJson,
+      correction_applied: item.correction_applied || 'none',
+      crop_top_pct: item.crop_top_pct || 0,
+      crop_bottom_pct: item.crop_bottom_pct || 0,
+      original_image_url: item.original_image_url || null,
+      active_image_url: item.active_image_url || null,
+      review_status: item.review_status || 'pending',
+      analyzed_at: item.analyzed_at || now,
+      updated_at: item.updated_at || now,
+    });
+
+    if (item.correction_applied === 'deactivated') {
+      s.prepare(`
+        UPDATE products SET is_active = 0, deactivation_reason = 'imagen_con_precio_no_recortable', updated_at = ?
+        WHERE id_dropi = ?
+      `).run(now, item.id_dropi);
+    } else {
+      s.prepare(`
+        UPDATE products SET
+          image_url = COALESCE(?, image_url),
+          crop_top_pct = ?,
+          crop_bottom_pct = ?,
+          updated_at = ?
+        WHERE id_dropi = ?
+      `).run(item.active_image_url, item.crop_top_pct || 0, item.crop_bottom_pct || 0, now, item.id_dropi);
+    }
+  } catch (sqlErr: any) {
+    console.warn('[DB] Error guardando moderación en SQLite:', sqlErr.message);
+  }
+
+  // 2. Actualizar Supabase si está configurado
+  if (isSupabaseConfigured) {
+    try {
+      await supabaseAdmin.from('product_image_moderation').upsert({
+        id_dropi: item.id_dropi,
+        has_burned_price: item.has_burned_price ? 1 : 0,
+        detected_text: item.detected_text || null,
+        detected_patterns: item.detected_patterns || [],
+        line_details: item.line_details || [],
+        clean_gallery_urls: item.clean_gallery_urls || [],
+        correction_applied: item.correction_applied || 'none',
+        crop_top_pct: item.crop_top_pct || 0,
+        crop_bottom_pct: item.crop_bottom_pct || 0,
+        original_image_url: item.original_image_url || null,
+        active_image_url: item.active_image_url || null,
+        review_status: item.review_status || 'pending',
+        analyzed_at: item.analyzed_at || now,
+        updated_at: item.updated_at || now,
+      });
+
+      if (item.correction_applied === 'deactivated') {
+        await supabaseAdmin.from('products').update({
+          is_active: 0,
+          deactivation_reason: 'imagen_con_precio_no_recortable',
+          updated_at: now,
+        }).eq('id_dropi', item.id_dropi);
+      } else {
+        const prodUpdate: any = {
+          crop_top_pct: item.crop_top_pct || 0,
+          crop_bottom_pct: item.crop_bottom_pct || 0,
+          updated_at: now,
+        };
+        if (item.active_image_url) {
+          prodUpdate.image_url = item.active_image_url;
+        }
+        await supabaseAdmin.from('products').update(prodUpdate).eq('id_dropi', item.id_dropi);
+      }
+    } catch (supaErr: any) {
+      console.warn('[DB] Error guardando moderación en Supabase:', supaErr.message);
+    }
+  }
+
+  // Limpiar caché de memoria del PDP
+  productMemoryCache.delete(item.id_dropi);
+  return true;
+}
+
+/**
+ * Consulta el estado de moderación OCR de un producto
+ */
+export async function getProductImageModeration(id_dropi: number): Promise<DbProductImageModeration | null> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('product_image_moderation')
+        .select('*')
+        .eq('id_dropi', id_dropi)
+        .maybeSingle();
+
+      if (!error && data) {
+        return {
+          ...data,
+          id_dropi: Number(data.id_dropi),
+          has_burned_price: Number(data.has_burned_price || 0),
+          detected_patterns: Array.isArray(data.detected_patterns)
+            ? data.detected_patterns
+            : typeof data.detected_patterns === 'string'
+            ? JSON.parse(data.detected_patterns)
+            : [],
+          clean_gallery_urls: Array.isArray(data.clean_gallery_urls)
+            ? data.clean_gallery_urls
+            : typeof data.clean_gallery_urls === 'string'
+            ? JSON.parse(data.clean_gallery_urls)
+            : [],
+          crop_top_pct: Number(data.crop_top_pct || 0),
+          crop_bottom_pct: Number(data.crop_bottom_pct || 0),
+        };
+      }
+    } catch {}
+  }
+
+  try {
+    const s = getSqliteDb();
+    const row = s.prepare('SELECT * FROM product_image_moderation WHERE id_dropi = ?').get(id_dropi);
+    if (!row) return null;
+    return {
+      ...row,
+      id_dropi: Number(row.id_dropi),
+      has_burned_price: Number(row.has_burned_price || 0),
+      detected_patterns: row.detected_patterns ? JSON.parse(row.detected_patterns) : [],
+      clean_gallery_urls: row.clean_gallery_urls ? JSON.parse(row.clean_gallery_urls) : [],
+      crop_top_pct: Number(row.crop_top_pct || 0),
+      crop_bottom_pct: Number(row.crop_bottom_pct || 0),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Lista los productos moderados para la vista de /admin
+ */
+export async function listModeratedProducts(options?: {
+  filter?: string; // 'all' | 'marked' | 'swapped_gallery' | 'crop' | 'deactivated'
+  status?: string; // 'all' | 'pending' | 'approved' | 'reverted'
+  limit?: number;
+  offset?: number;
+}): Promise<{ items: any[]; total: number }> {
+  const limit = options?.limit ?? 50;
+  const offset = options?.offset ?? 0;
+  const filter = options?.filter || 'marked';
+  const status = options?.status || 'all';
+
+  if (isSupabaseConfigured) {
+    try {
+      let query = supabaseAdmin
+        .from('product_image_moderation')
+        .select(`
+          *,
+          products:id_dropi (
+            name,
+            supplier_name,
+            sell_price_cop,
+            stock_real,
+            is_active
+          )
+        `, { count: 'exact' });
+
+      if (filter === 'marked') {
+        query = query.eq('has_burned_price', 1);
+      } else if (filter === 'swapped_gallery') {
+        query = query.eq('correction_applied', 'swapped_gallery');
+      } else if (filter === 'crop') {
+        query = query.in('correction_applied', ['crop_top', 'crop_bottom', 'crop_both']);
+      } else if (filter === 'deactivated') {
+        query = query.eq('correction_applied', 'deactivated');
+      }
+
+      if (status !== 'all') {
+        query = query.eq('review_status', status);
+      }
+
+      const { data, count, error } = await query
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (!error && data) {
+        const items = data.map((d: any) => ({
+          id_dropi: Number(d.id_dropi),
+          has_burned_price: Number(d.has_burned_price),
+          detected_text: d.detected_text,
+          detected_patterns: Array.isArray(d.detected_patterns) ? d.detected_patterns : [],
+          correction_applied: d.correction_applied,
+          crop_top_pct: Number(d.crop_top_pct || 0),
+          crop_bottom_pct: Number(d.crop_bottom_pct || 0),
+          original_image_url: d.original_image_url,
+          active_image_url: d.active_image_url,
+          review_status: d.review_status,
+          analyzed_at: d.analyzed_at,
+          updated_at: d.updated_at,
+          product_name: d.products?.name || `Producto #${d.id_dropi}`,
+          supplier_name: d.products?.supplier_name || 'Desconocido',
+          sell_price_cop: Number(d.products?.sell_price_cop || 0),
+          stock_real: Number(d.products?.stock_real || 0),
+          is_active: Number(d.products?.is_active ?? 1),
+        }));
+        return { items, total: count || items.length };
+      }
+    } catch (e: any) {
+      console.warn('Error en listModeratedProducts Supabase:', e.message);
+    }
+  }
+
+  // Fallback SQLite
+  try {
+    const s = getSqliteDb();
+    let whereClauses: string[] = [];
+    const params: any[] = [];
+
+    if (filter === 'marked') {
+      whereClauses.push('m.has_burned_price = 1');
+    } else if (filter === 'swapped_gallery') {
+      whereClauses.push("m.correction_applied = 'swapped_gallery'");
+    } else if (filter === 'crop') {
+      whereClauses.push("m.correction_applied IN ('crop_top', 'crop_bottom', 'crop_both')");
+    } else if (filter === 'deactivated') {
+      whereClauses.push("m.correction_applied = 'deactivated'");
+    }
+
+    if (status !== 'all') {
+      whereClauses.push('m.review_status = ?');
+      params.push(status);
+    }
+
+    const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const countRow = s.prepare(`SELECT COUNT(*) as total FROM product_image_moderation m ${whereStr}`).get(...params) as any;
+    const total = countRow?.total || 0;
+
+    const rows = s.prepare(`
+      SELECT
+        m.*,
+        p.name as product_name,
+        p.supplier_name,
+        p.sell_price_cop,
+        p.stock_real,
+        p.is_active
+      FROM product_image_moderation m
+      LEFT JOIN products p ON m.id_dropi = p.id_dropi
+      ${whereStr}
+      ORDER BY m.updated_at DESC
+      LIMIT ? OFFSET ?
+    `).all(...params, limit, offset) as any[];
+
+    const items = rows.map((r: any) => ({
+      ...r,
+      id_dropi: Number(r.id_dropi),
+      detected_patterns: r.detected_patterns ? JSON.parse(r.detected_patterns) : [],
+      clean_gallery_urls: r.clean_gallery_urls ? JSON.parse(r.clean_gallery_urls) : [],
+      crop_top_pct: Number(r.crop_top_pct || 0),
+      crop_bottom_pct: Number(r.crop_bottom_pct || 0),
+    }));
+
+    return { items, total };
+  } catch (err: any) {
+    console.error('Error listModeratedProducts SQLite:', err);
+    return { items: [], total: 0 };
+  }
+}
+
+/**
+ * Actualiza la corrección o el estado de aprobación por el dueño en /admin
+ */
+export async function updateModerationCorrection(
+  id_dropi: number,
+  update: {
+    correction_applied?: string;
+    crop_top_pct?: number;
+    crop_bottom_pct?: number;
+    review_status?: 'approved' | 'pending' | 'reverted';
+    is_active?: number;
+    active_image_url?: string;
+  }
+): Promise<boolean> {
+  const now = new Date().toISOString();
+
+  // 1. SQLite
+  try {
+    const s = getSqliteDb();
+    const existing = s.prepare('SELECT * FROM product_image_moderation WHERE id_dropi = ?').get(id_dropi) as any;
+    if (existing) {
+      const newCorrection = update.correction_applied ?? existing.correction_applied;
+      const newCropTop = update.crop_top_pct ?? existing.crop_top_pct;
+      const newCropBottom = update.crop_bottom_pct ?? existing.crop_bottom_pct;
+      const newReview = update.review_status ?? existing.review_status;
+      const newActiveImg = update.active_image_url ?? existing.active_image_url;
+
+      s.prepare(`
+        UPDATE product_image_moderation SET
+          correction_applied = ?,
+          crop_top_pct = ?,
+          crop_bottom_pct = ?,
+          review_status = ?,
+          active_image_url = ?,
+          updated_at = ?
+        WHERE id_dropi = ?
+      `).run(newCorrection, newCropTop, newCropBottom, newReview, newActiveImg, now, id_dropi);
+
+      if (update.is_active !== undefined) {
+        s.prepare('UPDATE products SET is_active = ?, updated_at = ? WHERE id_dropi = ?')
+          .run(update.is_active, now, id_dropi);
+      }
+      s.prepare('UPDATE products SET crop_top_pct = ?, crop_bottom_pct = ?, image_url = COALESCE(?, image_url), updated_at = ? WHERE id_dropi = ?')
+        .run(newCropTop, newCropBottom, newActiveImg, now, id_dropi);
+    }
+  } catch (e: any) {
+    console.warn('Error updateModerationCorrection SQLite:', e.message);
+  }
+
+  // 2. Supabase
+  if (isSupabaseConfigured) {
+    try {
+      const supaUpdate: any = { updated_at: now };
+      if (update.correction_applied !== undefined) supaUpdate.correction_applied = update.correction_applied;
+      if (update.crop_top_pct !== undefined) supaUpdate.crop_top_pct = update.crop_top_pct;
+      if (update.crop_bottom_pct !== undefined) supaUpdate.crop_bottom_pct = update.crop_bottom_pct;
+      if (update.review_status !== undefined) supaUpdate.review_status = update.review_status;
+      if (update.active_image_url !== undefined) supaUpdate.active_image_url = update.active_image_url;
+
+      await supabaseAdmin.from('product_image_moderation').update(supaUpdate).eq('id_dropi', id_dropi);
+
+      const prodUpdate: any = { updated_at: now };
+      if (update.crop_top_pct !== undefined) prodUpdate.crop_top_pct = update.crop_top_pct;
+      if (update.crop_bottom_pct !== undefined) prodUpdate.crop_bottom_pct = update.crop_bottom_pct;
+      if (update.is_active !== undefined) prodUpdate.is_active = update.is_active;
+      if (update.active_image_url) prodUpdate.image_url = update.active_image_url;
+
+      await supabaseAdmin.from('products').update(prodUpdate).eq('id_dropi', id_dropi);
+    } catch (e: any) {
+      console.warn('Error updateModerationCorrection Supabase:', e.message);
+    }
+  }
+
+  productMemoryCache.delete(id_dropi);
+  return true;
+}
+
+/**
+ * Revierte cualquier corrección aplicada por OCR, devolviendo la foto y estado original de Dropi
+ */
+export async function revertModerationCorrection(id_dropi: number): Promise<boolean> {
+  const mod = await getProductImageModeration(id_dropi);
+  if (!mod || !mod.original_image_url) return false;
+
+  return updateModerationCorrection(id_dropi, {
+    correction_applied: 'none',
+    crop_top_pct: 0,
+    crop_bottom_pct: 0,
+    review_status: 'reverted',
+    is_active: 1,
+    active_image_url: mod.original_image_url,
+  });
+}
+
+/**
+ * Obtiene métricas y conteos de moderación para el resumen en /admin
+ */
+export async function getModerationStats(): Promise<{
+  total_reviewed: number;
+  total_marked: number;
+  total_swapped: number;
+  total_cropped: number;
+  total_deactivated: number;
+  total_approved: number;
+}> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data } = await supabaseAdmin.from('product_image_moderation').select('has_burned_price, correction_applied, review_status');
+      if (data) {
+        let total_marked = 0;
+        let total_swapped = 0;
+        let total_cropped = 0;
+        let total_deactivated = 0;
+        let total_approved = 0;
+
+        for (const row of data) {
+          if (row.has_burned_price === 1) total_marked++;
+          if (row.correction_applied === 'swapped_gallery') total_swapped++;
+          if (row.correction_applied === 'crop_top' || row.correction_applied === 'crop_bottom' || row.correction_applied === 'crop_both') total_cropped++;
+          if (row.correction_applied === 'deactivated') total_deactivated++;
+          if (row.review_status === 'approved') total_approved++;
+        }
+
+        return {
+          total_reviewed: data.length,
+          total_marked,
+          total_swapped,
+          total_cropped,
+          total_deactivated,
+          total_approved,
+        };
+      }
+    } catch {}
+  }
+
+  try {
+    const s = getSqliteDb();
+    const rows = s.prepare(`
+      SELECT
+        COUNT(*) as total_reviewed,
+        SUM(CASE WHEN has_burned_price = 1 THEN 1 ELSE 0 END) as total_marked,
+        SUM(CASE WHEN correction_applied = 'swapped_gallery' THEN 1 ELSE 0 END) as total_swapped,
+        SUM(CASE WHEN correction_applied IN ('crop_top', 'crop_bottom', 'crop_both') THEN 1 ELSE 0 END) as total_cropped,
+        SUM(CASE WHEN correction_applied = 'deactivated' THEN 1 ELSE 0 END) as total_deactivated,
+        SUM(CASE WHEN review_status = 'approved' THEN 1 ELSE 0 END) as total_approved
+      FROM product_image_moderation
+    `).get() as any;
+
+    return {
+      total_reviewed: Number(rows?.total_reviewed || 0),
+      total_marked: Number(rows?.total_marked || 0),
+      total_swapped: Number(rows?.total_swapped || 0),
+      total_cropped: Number(rows?.total_cropped || 0),
+      total_deactivated: Number(rows?.total_deactivated || 0),
+      total_approved: Number(rows?.total_approved || 0),
+    };
+  } catch {
+    return {
+      total_reviewed: 0,
+      total_marked: 0,
+      total_swapped: 0,
+      total_cropped: 0,
+      total_deactivated: 0,
+      total_approved: 0,
+    };
+  }
+}
+

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatCOP } from '@/config/pricing';
+import { ImageModerationTab } from '@/components/admin/ImageModerationTab';
 import {
   Package,
   Sliders,
@@ -53,7 +54,7 @@ export default function AdminPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // --- NAVEGACIÓN DE PESTAÑAS ---
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'metrics' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'moderation' | 'metrics' | 'settings'>('orders');
 
   // --- DATOS GLOBALES ---
   const [stats, setStats] = useState<any>(null);
@@ -678,6 +679,18 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
           </button>
 
           <button
+            onClick={() => setActiveTab('moderation')}
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
+              activeTab === 'moderation'
+                ? 'border-rose-600 text-rose-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-rose-600" />
+            <span>🖼️ Moderación Fotos (OCR)</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('metrics')}
             className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
               activeTab === 'metrics'
@@ -1189,7 +1202,12 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
         )}
 
         {/* ==================================================================== */}
-        {/* PESTAÑA 3: MÉTRICAS Y AUDITORÍA                                      */}
+        {/* PESTAÑA 3: MODERACIÓN DE FOTOS Y PRECIOS QUEMADOS (OCR)             */}
+        {/* ==================================================================== */}
+        {activeTab === 'moderation' && <ImageModerationTab />}
+
+        {/* ==================================================================== */}
+        {/* PESTAÑA 4: MÉTRICAS Y AUDITORÍA                                      */}
         {/* ==================================================================== */}
         {activeTab === 'metrics' && (
           <div className="space-y-5">

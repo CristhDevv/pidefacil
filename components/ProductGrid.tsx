@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { formatCOP } from '@/config/pricing';
 import { Truck, CheckCircle2, ArrowRight } from 'lucide-react';
+import { getProductDisplayImageUrl } from '@/lib/image-url';
 
 export interface ProductSummary {
   id_dropi: number;
@@ -19,6 +20,8 @@ export interface ProductSummary {
   stock_real: number;
   supplier_name: string | null;
   image_url: string | null;
+  crop_top_pct?: number | null;
+  crop_bottom_pct?: number | null;
   categories?: any[];
 }
 
@@ -72,7 +75,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
       {products.map((prod, index) => {
         const hasImgError = imgErrors[prod.id_dropi];
         const displayImage = !hasImgError && prod.image_url
-          ? prod.image_url
+          ? getProductDisplayImageUrl(prod)
           : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80';
 
         // Ancla visual de precio anterior tachado
