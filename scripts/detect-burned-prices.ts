@@ -126,6 +126,7 @@ async function runModerationJob() {
   // 1. Vendibles (stock > 0 y cost > 0)
   // 2. Mayor stock primero
   // 3. Excluyendo productos ya analizados en product_image_moderation
+  const limitClause = maxProducts !== Infinity ? `LIMIT ${maxProducts}` : '';
   const query = `
     SELECT
       id_dropi,
@@ -146,6 +147,7 @@ async function runModerationJob() {
       (CASE WHEN stock_real > 0 AND cost_cop > 0 THEN 0 ELSE 1 END) ASC,
       stock_real DESC,
       id_dropi ASC
+    ${limitClause}
   `;
 
   const pendingProducts = db.prepare(query).all() as any[];

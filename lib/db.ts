@@ -369,7 +369,7 @@ export async function searchActiveProducts(queryText: string, limit = 10) {
     try {
       const { data, error } = await supabaseAdmin
         .from('products')
-        .select('id_dropi, name, sell_price_cop, image_url, stock_real, supplier_name')
+        .select('id_dropi, name, sell_price_cop, image_url, crop_top_pct, crop_bottom_pct, stock_real, supplier_name')
         .eq('is_active', 1)
         .gt('stock_real', 0)
         .ilike('name', `%${queryText.trim()}%`)
@@ -383,6 +383,8 @@ export async function searchActiveProducts(queryText: string, limit = 10) {
           id_dropi: Number(p.id_dropi),
           sell_price_cop: Number(p.sell_price_cop),
           stock_real: Number(p.stock_real),
+          crop_top_pct: Number(p.crop_top_pct || 0),
+          crop_bottom_pct: Number(p.crop_bottom_pct || 0),
         }));
       }
     } catch (e) {
@@ -401,7 +403,7 @@ export async function searchActiveProducts(queryText: string, limit = 10) {
 
     return getSqliteDb()
       .prepare(`
-        SELECT p.id_dropi, p.name, p.sell_price_cop, p.image_url, p.stock_real, p.supplier_name
+        SELECT p.id_dropi, p.name, p.sell_price_cop, p.image_url, p.crop_top_pct, p.crop_bottom_pct, p.stock_real, p.supplier_name
         FROM products p
         JOIN products_fts fts ON p.id_dropi = fts.id_dropi
         WHERE products_fts MATCH ? AND p.is_active = 1 AND p.stock_real > 0

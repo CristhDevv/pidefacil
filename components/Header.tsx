@@ -5,6 +5,7 @@ import { Search, X, ShieldCheck, ShoppingBag, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatCOP } from '@/config/pricing';
+import { getProductDisplayImageUrl } from '@/lib/image-url';
 
 interface HeaderProps {
   onSearch: (query: string) => void;
@@ -139,7 +140,7 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <div className="relative w-11 h-11 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100">
                       <Image
-                        src={item.image_url || '/placeholder.png'}
+                        src={getProductDisplayImageUrl(item)}
                         alt={item.name}
                         fill
                         className="object-cover"
