@@ -50,9 +50,13 @@ import {
   Zap,
   Key,
   Box,
+  Menu,
+  X,
 } from 'lucide-react';
 
 export default function AdminPage() {
+  // --- NAVEGACIÓN Y SIDEBAR ---
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   // --- AUTENTICACIÓN ---
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [loginMode, setLoginMode] = useState<'user' | 'master'>('user');
@@ -676,165 +680,317 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
   }
 
   // --------------------------------------------------------------------------
-  // ESTADO: DASHBOARD COMPLETO (AUTENTICADO)
+  // ESTADO: DASHBOARD COMPLETO (AUTENTICADO CON SIDEBAR IZQUIERDA)
   // --------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 pb-16">
-      {/* Top Bar Superior */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-black text-sm shadow-xs hover:bg-emerald-700 transition"
-              title="Ir a la tienda"
-            >
-              PF
-            </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-black text-slate-900 leading-none">
-                  PideFácil • Panel de Control
-                </h1>
-                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200 hidden sm:inline-block">
-                  Sesión Admin Activa
-                </span>
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col lg:flex-row">
+      {/* OVERLAY PARA PANTALLAS MÓVILES */}
+      {isMobileSidebarOpen && (
+        <div
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+        />
+      )}
+
+      {/* ==================================================================== */}
+      {/* SIDEBAR IZQUIERDA ELEGANTE Y COMPACTA                                */}
+      {/* ==================================================================== */}
+      <aside
+        className={`fixed lg:sticky top-0 h-screen w-72 bg-slate-950 text-white z-50 flex flex-col justify-between border-r border-slate-800/80 transition-transform duration-200 ease-in-out flex-shrink-0 ${
+          isMobileSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <div className="flex flex-col h-full min-h-0">
+          {/* Encabezado de Marca en Sidebar */}
+          <div className="p-4 sm:p-5 border-b border-slate-800/80 flex items-center justify-between flex-shrink-0">
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center text-white font-black text-sm shadow-md shadow-emerald-500/25 group-hover:scale-105 transition">
+                PF
               </div>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                Gestión operativa Dropi COD & Catálogo Colombia
-              </p>
-            </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-black text-white tracking-tight">PideFácil</span>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/25">
+                    Admin
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Dropi COD Conectado</span>
+                </p>
+              </div>
+            </Link>
+
+            <button
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition"
+              title="Cerrar menú"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Menú de Navegación Vertical */}
+          <nav className="p-3.5 space-y-5 overflow-y-auto flex-1 no-scrollbar">
+            {/* GRUPO 1: OPERACIONES */}
+            <div>
+              <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                Operaciones
+              </p>
+              <div className="space-y-1">
+                {/* 1. Gestión de Pedidos */}
+                <button
+                  onClick={() => {
+                    setActiveTab('orders');
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    activeTab === 'orders'
+                      ? 'bg-emerald-600 text-white font-black shadow-md shadow-emerald-600/30'
+                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Package className={`w-4 h-4 ${activeTab === 'orders' ? 'text-white' : 'text-slate-400'}`} />
+                    <span>Gestión de Pedidos</span>
+                  </div>
+                  {pendingOrdersCount > 0 && (
+                    <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[10px] font-black rounded-full shadow-xs">
+                      {pendingOrdersCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* 2. Catálogo & Productos */}
+                <button
+                  onClick={() => {
+                    setActiveTab('products');
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    activeTab === 'products'
+                      ? 'bg-emerald-600 text-white font-black shadow-md shadow-emerald-600/30'
+                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Tag className={`w-4 h-4 ${activeTab === 'products' ? 'text-white' : 'text-slate-400'}`} />
+                    <span>Catálogo & Productos</span>
+                  </div>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
+                      activeTab === 'products' ? 'bg-emerald-700/70 text-white' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    232k+
+                  </span>
+                </button>
+
+                {/* 3. Liquidaciones Vendedores */}
+                <button
+                  onClick={() => {
+                    setActiveTab('liquidations');
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    activeTab === 'liquidations'
+                      ? 'bg-emerald-600 text-white font-black shadow-md shadow-emerald-600/30'
+                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <DollarSign
+                      className={`w-4 h-4 ${activeTab === 'liquidations' ? 'text-white' : 'text-emerald-400'}`}
+                    />
+                    <span>Liquidaciones Vendedores</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* GRUPO 2: GESTIÓN & AUDITORÍA */}
+            <div>
+              <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                Gestión & Control
+              </p>
+              <div className="space-y-1">
+                {/* 4. Usuarios & Roles */}
+                <button
+                  onClick={() => {
+                    setActiveTab('users');
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    activeTab === 'users'
+                      ? 'bg-emerald-600 text-white font-black shadow-md shadow-emerald-600/30'
+                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Users className={`w-4 h-4 ${activeTab === 'users' ? 'text-white' : 'text-indigo-400'}`} />
+                    <span>Usuarios & Roles</span>
+                  </div>
+                </button>
+
+                {/* 5. Moderación Fotos OCR */}
+                <button
+                  onClick={() => {
+                    setActiveTab('moderation');
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    activeTab === 'moderation'
+                      ? 'bg-emerald-600 text-white font-black shadow-md shadow-emerald-600/30'
+                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck className={`w-4 h-4 ${activeTab === 'moderation' ? 'text-white' : 'text-rose-400'}`} />
+                    <span>Moderación Fotos (OCR)</span>
+                  </div>
+                </button>
+
+                {/* 6. Métricas & Auditoría */}
+                <button
+                  onClick={() => {
+                    setActiveTab('metrics');
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    activeTab === 'metrics'
+                      ? 'bg-emerald-600 text-white font-black shadow-md shadow-emerald-600/30'
+                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <BarChart3 className={`w-4 h-4 ${activeTab === 'metrics' ? 'text-white' : 'text-slate-400'}`} />
+                    <span>Métricas & Auditoría</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* GRUPO 3: CONFIGURACIÓN */}
+            <div>
+              <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                Sistema
+              </p>
+              <div className="space-y-1">
+                {/* 7. Ajustes Comerciales */}
+                <button
+                  onClick={() => {
+                    setActiveTab('settings');
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    activeTab === 'settings'
+                      ? 'bg-emerald-600 text-white font-black shadow-md shadow-emerald-600/30'
+                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Settings className={`w-4 h-4 ${activeTab === 'settings' ? 'text-white' : 'text-slate-400'}`} />
+                    <span>Ajustes Comerciales</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </nav>
+
+          {/* Footer del Sidebar */}
+          <div className="p-3.5 border-t border-slate-800/80 space-y-1.5 bg-slate-950/60 flex-shrink-0">
             <Link
               href="/"
               target="_blank"
-              className="hidden sm:flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-emerald-700 bg-slate-100 hover:bg-emerald-50 rounded-xl transition"
+              className="flex items-center justify-between px-3 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800/80 rounded-xl transition"
             >
-              <span>Ver Tienda</span>
-              <ExternalLink className="w-3 h-3" />
+              <div className="flex items-center gap-2">
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                <span>Ver Tienda Pública</span>
+              </div>
+              <span className="text-[10px] text-slate-500 font-mono">↗</span>
             </Link>
 
             <button
-              onClick={loadAdminData}
-              disabled={isLoading}
-              className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
-              title="Refrescar datos"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Actualizar</span>
-            </button>
-
-            <button
               onClick={handleLogout}
-              className="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl border border-red-200/60 transition"
-              title="Cerrar sesión"
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Salir</span>
+              <span>Cerrar Sesión</span>
             </button>
           </div>
         </div>
+      </aside>
 
-        {/* Pestañas Principales de Gestión */}
-        <div className="max-w-7xl mx-auto px-4 flex gap-1 sm:gap-2 overflow-x-auto no-scrollbar border-t border-slate-100">
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
-              activeTab === 'orders'
-                ? 'border-emerald-600 text-emerald-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            <span>Gestión de Pedidos</span>
-            {pendingOrdersCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 bg-amber-500 text-white text-[10px] font-black rounded-full">
-                {pendingOrdersCount}
-              </span>
-            )}
-          </button>
+      {/* ==================================================================== */}
+      {/* ÁREA DE CONTENIDO PRINCIPAL                                          */}
+      {/* ==================================================================== */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Header Bar en Área Principal */}
+        <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30 shadow-xs">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              {/* Botón Hamburger en Pantallas Móviles */}
+              <button
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-xl bg-slate-100 hover:bg-slate-200 transition flex-shrink-0"
+                title="Abrir menú lateral"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
 
-          <button
-            onClick={() => setActiveTab('products')}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
-              activeTab === 'products'
-                ? 'border-emerald-600 text-emerald-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Tag className="w-4 h-4" />
-            <span>Catálogo & Productos</span>
-            <span className="text-[10px] text-slate-400 font-semibold hidden sm:inline">
-              (232k+)
-            </span>
-          </button>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-sm sm:text-base font-black text-slate-900 truncate">
+                    {activeTab === 'orders' && 'Gestión de Pedidos COD'}
+                    {activeTab === 'products' && 'Catálogo & Productos'}
+                    {activeTab === 'liquidations' && 'Liquidaciones Vendedores'}
+                    {activeTab === 'users' && 'Gestión de Usuarios & Roles'}
+                    {activeTab === 'moderation' && 'Moderación de Fotos (OCR)'}
+                    {activeTab === 'metrics' && 'Métricas & Auditoría'}
+                    {activeTab === 'settings' && 'Ajustes Comerciales & Token Dropi'}
+                  </h1>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200 hidden sm:inline-block">
+                    ● En Vivo
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5 hidden sm:block">
+                  {activeTab === 'orders' && 'Monitoreo de órdenes, estados de entrega y montaje en Dropi'}
+                  {activeTab === 'products' && 'Explorador de productos Dropi Colombia y configuración de medidas para fletes'}
+                  {activeTab === 'liquidations' && 'Liquidación de recaudos entregados y pagos finales a vendedores'}
+                  {activeTab === 'users' && 'Cuentas activas, roles y contraseñas sin confirmación por correo'}
+                  {activeTab === 'moderation' && 'Detección automática de precios quemados y banners de proveedor'}
+                  {activeTab === 'metrics' && 'Indicadores de recaudo y auditoría técnica'}
+                  {activeTab === 'settings' && 'Margen de ganancia comercial y token Bearer Dropi API v2'}
+                </p>
+              </div>
+            </div>
 
-          <button
-            onClick={() => setActiveTab('liquidations')}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
-              activeTab === 'liquidations'
-                ? 'border-emerald-600 text-emerald-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <DollarSign className="w-4 h-4 text-emerald-600" />
-            <span>💰 Liquidaciones Vendedores</span>
-          </button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Link
+                href="/"
+                target="_blank"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-emerald-700 bg-slate-100 hover:bg-emerald-50 rounded-xl transition"
+              >
+                <span>Ver Tienda</span>
+                <ExternalLink className="w-3 h-3" />
+              </Link>
 
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
-              activeTab === 'users'
-                ? 'border-indigo-600 text-indigo-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Users className="w-4 h-4 text-indigo-600" />
-            <span>👥 Usuarios & Roles</span>
-          </button>
+              <button
+                onClick={loadAdminData}
+                disabled={isLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
+                title="Refrescar datos del panel"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Actualizar</span>
+              </button>
+            </div>
+          </div>
+        </header>
 
-          <button
-            onClick={() => setActiveTab('moderation')}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
-              activeTab === 'moderation'
-                ? 'border-rose-600 text-rose-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4 text-rose-600" />
-            <span>🖼️ Moderación Fotos (OCR)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('metrics')}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
-              activeTab === 'metrics'
-                ? 'border-emerald-600 text-emerald-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span>Métricas & Auditoría</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
-              activeTab === 'settings'
-                ? 'border-emerald-600 text-emerald-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            <span>Ajustes Comerciales</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Contenido Principal según Pestaña */}
-      <main className="max-w-7xl mx-auto px-4 py-5 space-y-6">
+        {/* Contenido Principal según Pestaña */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6 w-full flex-1">
         {/* ==================================================================== */}
         {/* PESTAÑA 1: GESTIÓN DE PEDIDOS COD                                   */}
         {/* ==================================================================== */}
@@ -1669,6 +1825,7 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
           </div>
         )}
       </main>
+      </div>
 
       {/* Modal de edición de medidas y origen de envío */}
       {selectedProductForDimensions && (
