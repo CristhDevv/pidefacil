@@ -9,6 +9,7 @@ import { ImageModerationTab } from '@/components/admin/ImageModerationTab';
 import { SellerLiquidationTab } from '@/components/admin/SellerLiquidationTab';
 import { DropiTokenCard } from '@/components/admin/DropiTokenCard';
 import { ProductDimensionsModal } from '@/components/admin/ProductDimensionsModal';
+import { UsersManagementTab } from '@/components/admin/UsersManagementTab';
 import {
   Package,
   Sliders,
@@ -38,6 +39,7 @@ import {
   Phone,
   MapPin,
   User,
+  Users,
   DollarSign,
   Store,
   Tag,
@@ -53,13 +55,15 @@ import {
 export default function AdminPage() {
   // --- AUTENTICACIÓN ---
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [loginMode, setLoginMode] = useState<'user' | 'master'>('user');
+  const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // --- NAVEGACIÓN DE PESTAÑAS ---
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'liquidations' | 'moderation' | 'metrics' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'liquidations' | 'users' | 'moderation' | 'metrics' | 'settings'>('orders');
 
   // --- MODAL DE DIMENSIONES & ENVÍO ---
   const [selectedProductForDimensions, setSelectedProductForDimensions] = useState<any | null>(null);
@@ -190,17 +194,23 @@ export default function AdminPage() {
     setIsLoggingIn(true);
     setAuthError(null);
     try {
+      const payload: any = { password: passwordInput };
+      if (loginMode === 'user') {
+        payload.email = emailInput.trim();
+      }
+
       const res = await fetch('/api/admin/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: passwordInput }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (json.success) {
         setIsAuthenticated(true);
         setPasswordInput('');
+        setEmailInput('');
       } else {
-        setAuthError(json.error || 'Contraseña incorrecta');
+        setAuthError(json.error || 'Credenciales incorrectas');
       }
     } catch {
       setAuthError('Error de conexión al iniciar sesión');
@@ -565,19 +575,64 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
             </div>
           )}
 
+          {/* Selector de modo de acceso */}
+          <div className="flex rounded-2xl bg-white/5 p-1 mb-4 border border-white/10 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode('user');
+                setAuthError(null);
+              }}
+              className={`flex-1 py-1.5 rounded-xl transition ${
+                loginMode === 'user' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Usuario & Clave
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode('master');
+                setAuthError(null);
+              }}
+              className={`flex-1 py-1.5 rounded-xl transition ${
+                loginMode === 'master' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Clave Maestra
+            </button>
+          </div>
+
           <form onSubmit={handleLogin} className="space-y-4">
+            {loginMode === 'user' && (
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  Correo Electrónico
+                </label>
+                <input
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  placeholder="admin@pidefacil.co"
+                  required
+                  autoFocus
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                />
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                Contraseña de Administrador
+                {loginMode === 'user' ? 'Contraseña' : 'Contraseña Maestra'}
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="Ingresa la clave maestra..."
+                  placeholder={loginMode === 'user' ? 'Ingresa tu contraseña...' : 'Ingresa la clave maestra...'}
                   required
-                  autoFocus
+                  autoFocus={loginMode === 'master'}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
                 />
                 <button
@@ -592,7 +647,7 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
 
             <button
               type="submit"
-              disabled={isLoggingIn || !passwordInput.trim()}
+              disabled={isLoggingIn || !passwordInput.trim() || (loginMode === 'user' && !emailInput.trim())}
               className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2 text-sm active:scale-[0.98]"
             >
               {isLoggingIn ? (
@@ -726,6 +781,18 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
           >
             <DollarSign className="w-4 h-4 text-emerald-600" />
             <span>💰 Liquidaciones Vendedores</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
+              activeTab === 'users'
+                ? 'border-indigo-600 text-indigo-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Users className="w-4 h-4 text-indigo-600" />
+            <span>👥 Usuarios & Roles</span>
           </button>
 
           <button
@@ -1282,6 +1349,11 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
         {/* PESTAÑA: LIQUIDACIONES DE VENDEDORES (MODELO DROPI COD)             */}
         {/* ==================================================================== */}
         {activeTab === 'liquidations' && <SellerLiquidationTab />}
+
+        {/* ==================================================================== */}
+        {/* PESTAÑA: GESTIÓN DE USUARIOS Y ROLES (CREACIÓN DIRECTA SIN CORREO)  */}
+        {/* ==================================================================== */}
+        {activeTab === 'users' && <UsersManagementTab />}
 
         {/* ==================================================================== */}
         {/* PESTAÑA 3: MODERACIÓN DE FOTOS Y PRECIOS QUEMADOS (OCR)             */}

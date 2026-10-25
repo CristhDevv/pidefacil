@@ -55,7 +55,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const token = createSellerToken({ id: Number(sellerRow.id), email: sellerRow.email });
+    const token = createSellerToken({
+      id: Number(sellerRow.id),
+      email: sellerRow.email,
+      role: sellerRow.role || 'vendedor',
+    });
     const response = NextResponse.json({
       success: true,
       seller: {
@@ -63,6 +67,7 @@ export async function POST(request: NextRequest) {
         name: sellerRow.name,
         email: sellerRow.email,
         phone: sellerRow.phone,
+        role: sellerRow.role || 'vendedor',
         status: sellerRow.status,
       },
     });
