@@ -60,10 +60,10 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
         <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
           🔍
         </div>
-        <h3 className="text-base font-bold text-slate-800 mb-1">
+        <h3 className="text-base font-bold text-slate-800 mb-1 font-heading">
           No encontramos productos
         </h3>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 font-sans">
           Intenta con otro término de búsqueda o selecciona otra categoría.
         </p>
       </div>
@@ -107,45 +107,45 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                 />
 
                 {/* Badge Sutil: Pagas al recibir */}
-                <div className="absolute top-1.5 left-1.5 bg-amber-100/95 backdrop-blur-sm text-[#B45309] text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs border border-amber-200/50">
+                <div className="absolute top-1.5 left-1.5 bg-amber-100/95 backdrop-blur-sm text-[#B45309] text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs border border-amber-200/50 font-sans">
                   <CheckCircle2 className="w-2.5 h-2.5" />
                   <span>Pagas en casa</span>
                 </div>
               </div>
 
               {/* Título Limpio en Máximo 2 Líneas */}
-              <h3 className="text-xs font-semibold text-slate-800 line-clamp-2 leading-snug mb-1.5 group-hover:text-emerald-700 transition-colors">
+              <h3 className="product-name font-heading text-xs sm:text-sm font-bold text-slate-800 line-clamp-2 leading-snug mb-1.5 group-hover:text-emerald-700 transition-colors">
                 {prod.name}
               </h3>
             </div>
 
             <div className="pt-1">
               {/* Badge Envío Gratis */}
-              <div className="flex items-center gap-1 text-[10px] font-medium text-emerald-700 mb-1">
+              <div className="flex items-center gap-1 text-[10px] font-medium text-emerald-700 mb-1 font-sans">
                 <Truck className="w-3 h-3 text-emerald-600" />
                 <span>Envío Gratis</span>
               </div>
 
-              {/* Precios: Anterior Tachado + Final en Negrita #16A34A */}
+              {/* Precios: Anterior Tachado + Final en Negrita 800 #16A34A */}
               <div className="flex items-baseline gap-1.5">
-                <span className="text-[11px] text-slate-400 line-through">
+                <span className="text-[11px] sm:text-xs text-slate-400 line-through font-sans font-normal">
                   {formatCOP(anchorPrice)}
                 </span>
-                <span className="text-base font-extrabold text-[#16A34A] tracking-tight">
+                <span className="price-tag font-price text-base sm:text-lg font-extrabold text-[#16A34A] tracking-tight">
                   {formatCOP(prod.sell_price_cop)}
                 </span>
               </div>
 
               {/* Oferta Combo 2x (Más Elegido) */}
               {prod.duo_price_cop > 0 && prod.duo_price_cop > prod.sell_price_cop && (
-                <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/60">
-                  <span>🔥 2x por</span>
-                  <span className="font-black text-emerald-700">{formatCOP(prod.duo_price_cop)}</span>
+                <div className="mt-1 inline-flex items-center gap-1 text-[10px] text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/60 font-sans">
+                  <span className="font-medium">🔥 2x por</span>
+                  <span className="font-price font-extrabold text-emerald-700 text-[11px] sm:text-xs">{formatCOP(prod.duo_price_cop)}</span>
                 </div>
               )}
 
               {/* Botón Táctil "Ver oferta" que lleva a la página del producto */}
-              <div className="mt-2 w-full bg-slate-100 group-hover:bg-[#16A34A] group-hover:text-white text-slate-700 font-bold text-[11px] py-1.5 px-2 rounded-xl text-center flex items-center justify-center gap-1 transition-all">
+              <div className="btn-cta font-heading mt-2 w-full bg-slate-100 group-hover:bg-[#16A34A] group-hover:text-white text-slate-700 group-hover:font-extrabold font-bold text-[11px] sm:text-xs py-1.5 px-2 rounded-xl text-center flex items-center justify-center gap-1 transition-all">
                 <span>Ver producto</span>
                 <ArrowRight className="w-3 h-3" />
               </div>

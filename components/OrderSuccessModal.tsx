@@ -43,48 +43,48 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
           <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
         </div>
 
-        <span className="inline-block bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 mb-2">
+        <span className="inline-block bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 mb-2 font-sans">
           🇨🇴 ¡Pedido Recibido con Éxito!
         </span>
 
-        <h2 className="text-xl font-black text-slate-900 mb-1">
+        <h2 className="text-xl font-extrabold text-slate-900 mb-1 font-heading">
           ¡Gracias por tu compra!
         </h2>
-        <p className="text-xs text-slate-500 mb-4">
+        <p className="text-xs text-slate-500 mb-4 font-sans">
           Estamos alistando tu paquete en bodega para despachar a tu dirección.
         </p>
 
         {/* Tarjeta de Resumen */}
-        <div className="bg-slate-50 rounded-2xl p-4 text-left border border-slate-100 space-y-2 mb-4 text-xs">
+        <div className="bg-slate-50 rounded-2xl p-4 text-left border border-slate-100 space-y-2 mb-4 text-xs font-sans">
           <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
-            <span className="text-slate-500 font-semibold">Número de Pedido:</span>
-            <span className="font-mono font-black text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+            <span className="text-slate-500 font-medium">Número de Pedido:</span>
+            <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
               {order.order_number}
             </span>
           </div>
 
           <div className="flex justify-between items-center">
             <span className="text-slate-500 font-medium">Destinatario:</span>
-            <span className="font-bold text-slate-800">{order.customer_name}</span>
+            <span className="font-semibold text-slate-800">{order.customer_name}</span>
           </div>
 
           <div className="flex justify-between items-center">
             <span className="text-slate-500 font-medium">Destino:</span>
-            <span className="font-semibold text-slate-800">
+            <span className="font-medium text-slate-800">
               {order.city}, {order.department}
             </span>
           </div>
 
           <div className="flex justify-between items-center">
             <span className="text-slate-500 font-medium">Dirección / Barrio:</span>
-            <span className="font-semibold text-slate-800 text-right truncate max-w-[200px]">
+            <span className="font-medium text-slate-800 text-right truncate max-w-[200px]">
               {order.address} ({order.neighborhood})
             </span>
           </div>
 
           <div className="flex justify-between items-center pt-2 border-t border-slate-200/60">
-            <span className="text-emerald-900 font-bold">Total en Efectivo al Recibir:</span>
-            <span className="text-base font-black text-emerald-700">
+            <span className="text-emerald-900 font-bold font-sans">Total en Efectivo al Recibir:</span>
+            <span className="price-tag font-price text-lg font-extrabold text-emerald-700">
               {formatCOP(order.total_cop)}
             </span>
           </div>

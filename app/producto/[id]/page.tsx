@@ -127,16 +127,16 @@ export default function ProductDetailPage() {
         <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center justify-between">
           <Link
             href="/"
-            className="p-1 rounded-full text-slate-600 hover:bg-slate-100 transition flex items-center gap-1 text-xs font-bold"
+            className="p-1 rounded-full text-slate-600 hover:bg-slate-100 transition flex items-center gap-1 text-xs font-bold font-sans"
           >
             <ArrowLeft className="w-5 h-5" />
             <span>Volver</span>
           </Link>
-          <div className="flex items-center gap-1 text-xs font-bold text-slate-900">
+          <div className="flex items-center gap-1 text-xs font-extrabold text-slate-900 font-heading">
             <ShoppingBag className="w-4 h-4 text-emerald-600" />
             <span>PideFácil.co</span>
           </div>
-          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 font-sans">
             🚚 Envío Gratis
           </span>
         </div>
@@ -159,13 +159,13 @@ export default function ProductDetailPage() {
             <>
               <button
                 onClick={handlePrevImage}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm shadow flex items-center justify-center text-slate-700 active:scale-95"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm shadow flex items-center justify-center text-slate-700 active:scale-95 font-heading"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={handleNextImage}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm shadow flex items-center justify-center text-slate-700 active:scale-95"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm shadow flex items-center justify-center text-slate-700 active:scale-95 font-heading"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -183,7 +183,7 @@ export default function ProductDetailPage() {
           )}
 
           {/* Insignia Flotante: Pagas al recibir */}
-          <div className="absolute top-3 left-3 bg-amber-100/95 backdrop-blur-sm text-[#B45309] text-xs font-black px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-xs border border-amber-200/60">
+          <div className="absolute top-3 left-3 bg-amber-100/95 backdrop-blur-sm text-[#B45309] text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-xs border border-amber-200/60 font-sans">
             <span>💵 Pagas en casa al recibir</span>
           </div>
         </div>
@@ -191,24 +191,24 @@ export default function ProductDetailPage() {
         {/* Título, Precios y Stock en Vivo */}
         <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-2">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 font-sans">
               <Clock className="w-3 h-3 text-emerald-600" />
               <span>En stock — Despacho inmediato</span>
             </span>
           </div>
 
-          <h1 className="text-lg sm:text-xl font-black text-slate-900 leading-snug">
+          <h1 className="product-name font-heading text-lg sm:text-2xl font-extrabold text-slate-900 leading-snug">
             {product.name}
           </h1>
 
-          <div className="flex items-baseline gap-2 pt-1">
-            <span className="text-sm text-slate-400 line-through">
+          <div className="flex items-baseline gap-2.5 pt-1">
+            <span className="text-sm sm:text-base text-slate-400 line-through font-sans font-normal">
               {formatCOP(anchorPrice)}
             </span>
-            <span className="text-2xl font-black text-[#16A34A] tracking-tight">
+            <span className="price-tag font-price text-2xl sm:text-3xl font-extrabold text-[#16A34A] tracking-tight">
               {formatCOP(product.sell_price_cop)}
             </span>
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-md font-sans">
               Envío Gratis
             </span>
           </div>
@@ -217,10 +217,10 @@ export default function ProductDetailPage() {
         {/* Selector de Ofertas: 1x vs Combo 2x (Más Elegido) */}
         <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5 font-heading">
               <span>Elige tu Oferta con Envío Gratis:</span>
             </label>
-            <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 font-sans">
               Pagas al recibir
             </span>
           </div>
@@ -236,7 +236,7 @@ export default function ProductDetailPage() {
               }`}
             >
               {/* Badge Más Elegido */}
-              <div className="absolute -top-2.5 right-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+              <div className="absolute -top-2.5 right-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1 font-heading">
                 <Sparkles className="w-2.5 h-2.5" />
                 <span>⭐ MÁS ELEGIDO</span>
               </div>
@@ -253,22 +253,22 @@ export default function ProductDetailPage() {
                     >
                       {selectedOffer === '2x' && <Check className="w-3 h-3 stroke-[3]" />}
                     </div>
-                    <span className="text-sm font-black text-slate-900 leading-tight">
+                    <span className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight font-heading">
                       {packInfo.duoTitle}
                     </span>
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-600 leading-snug pl-6 mb-2">
+                <p className="text-xs text-slate-600 leading-snug pl-6 mb-2 font-sans">
                   {packInfo.duoExpl}
                 </p>
               </div>
 
               <div className="pl-6 pt-1 flex items-baseline justify-between border-t border-slate-100">
-                <span className="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded">
+                <span className="text-[10px] font-bold text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded font-sans">
                   Ahorras {formatCOP(duoSavings)}
                 </span>
-                <span className="text-lg font-black text-[#16A34A]">
+                <span className="price-tag font-price text-xl sm:text-2xl font-extrabold text-[#16A34A]">
                   {formatCOP(duoPrice)}
                 </span>
               </div>
@@ -295,20 +295,20 @@ export default function ProductDetailPage() {
                     >
                       {selectedOffer === '1x' && <Check className="w-3 h-3 stroke-[3]" />}
                     </div>
-                    <span className="text-sm font-bold text-slate-800 leading-tight">
+                    <span className="text-sm sm:text-base font-bold text-slate-800 leading-tight font-heading">
                       {packInfo.singleTitle}
                     </span>
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-600 leading-snug pl-6 mb-2">
+                <p className="text-xs text-slate-600 leading-snug pl-6 mb-2 font-sans">
                   {packInfo.singleExpl}
                 </p>
               </div>
 
               <div className="pl-6 pt-1 flex items-baseline justify-between border-t border-slate-100">
-                <span className="text-[10px] text-slate-400 font-medium">Precio regular</span>
-                <span className="text-lg font-black text-slate-800">
+                <span className="text-[10px] text-slate-400 font-medium font-sans">Precio regular</span>
+                <span className="price-tag font-price text-xl sm:text-2xl font-extrabold text-slate-800">
                   {formatCOP(product.sell_price_cop)}
                 </span>
               </div>
@@ -319,7 +319,7 @@ export default function ProductDetailPage() {
         {/* Selector de Variaciones Obligatorio si VARIABLE */}
         {variations.length > 0 && (
           <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
-            <label className="block text-xs font-bold text-slate-800 mb-2.5">
+            <label className="block text-xs font-bold text-slate-800 mb-2.5 font-heading">
               Selecciona tu opción o color:
             </label>
             <div className="flex flex-wrap gap-2">
@@ -333,7 +333,7 @@ export default function ProductDetailPage() {
                       key={index}
                       type="button"
                       onClick={() => setSelectedVariation(label)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition ${
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition font-heading ${
                         isSelected
                           ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
@@ -351,30 +351,30 @@ export default function ProductDetailPage() {
         <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm grid grid-cols-3 gap-2 text-center">
           <div className="flex flex-col items-center">
             <Banknote className="w-6 h-6 text-emerald-600 mb-1" />
-            <span className="text-xs font-bold text-slate-800">Pago en Efectivo</span>
-            <span className="text-[10px] text-slate-500">Al transportador</span>
+            <span className="text-xs font-bold text-slate-800 font-heading">Pago en Efectivo</span>
+            <span className="text-[10px] text-slate-500 font-sans">Al transportador</span>
           </div>
           <div className="flex flex-col items-center border-x border-slate-100">
             <Truck className="w-6 h-6 text-emerald-600 mb-1" />
-            <span className="text-xs font-bold text-slate-800">Envío Gratis</span>
-            <span className="text-[10px] text-slate-500">Toda Colombia</span>
+            <span className="text-xs font-bold text-slate-800 font-heading">Envío Gratis</span>
+            <span className="text-[10px] text-slate-500 font-sans">Toda Colombia</span>
           </div>
           <div className="flex flex-col items-center">
             <ShieldCheck className="w-6 h-6 text-emerald-600 mb-1" />
-            <span className="text-xs font-bold text-slate-800">Garantía Total</span>
-            <span className="text-[10px] text-slate-500">Por defectos</span>
+            <span className="text-xs font-bold text-slate-800 font-heading">Garantía Total</span>
+            <span className="text-[10px] text-slate-500 font-sans">Por defectos</span>
           </div>
         </div>
 
         {/* Descripción si está disponible */}
         {product.description && (
           <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2 font-heading">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
               Detalles del Producto
             </h3>
             <div
-              className="text-xs sm:text-sm text-slate-600 leading-relaxed space-y-2 prose prose-sm max-w-none prose-p:my-1 prose-headings:text-slate-800 prose-strong:text-slate-900 prose-ul:list-disc prose-ul:ml-4 prose-li:my-0.5"
+              className="product-description font-sans text-xs sm:text-sm text-slate-600 leading-relaxed space-y-2 prose prose-sm max-w-none prose-p:my-1 prose-headings:text-slate-800 prose-headings:font-heading prose-headings:font-bold prose-strong:text-slate-900 prose-ul:list-disc prose-ul:ml-4 prose-li:my-0.5"
               dangerouslySetInnerHTML={{ __html: product.description }}
             />
           </div>
@@ -386,13 +386,13 @@ export default function ProductDetailPage() {
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <button
             onClick={() => setIsCheckoutOpen(true)}
-            className="w-full bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white font-black py-3.5 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="btn-cta font-heading w-full bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
           >
-            <span>
+            <span className="font-heading font-extrabold">
               👉 PEDIR {selectedOffer === '2x' ? packInfo.duoBadge.toUpperCase() : packInfo.singleBadge.toUpperCase()}
             </span>
             <span>—</span>
-            <span>{formatCOP(currentPrice)}</span>
+            <span className="font-price font-extrabold text-base sm:text-lg">{formatCOP(currentPrice)}</span>
           </button>
         </div>
       </div>

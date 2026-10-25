@@ -83,18 +83,18 @@ export const HomeClient: React.FC<HomeClientProps> = ({
       <div className="max-w-4xl mx-auto px-4 pt-3.5 pb-1">
         <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-2xl p-4 shadow-sm flex items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-200 mb-0.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-200 mb-0.5 font-sans">
               <Sparkles className="w-3.5 h-3.5" />
               <span>OFERTAS DE PAGO CONTRA ENTREGA</span>
             </div>
-            <h2 className="text-base sm:text-lg font-black leading-tight">
+            <h2 className="text-base sm:text-lg font-extrabold leading-tight font-heading">
               Paga en Efectivo al Recibir en tu Puerta
             </h2>
-            <p className="text-xs text-emerald-100 font-medium mt-0.5">
+            <p className="text-xs text-emerald-100 font-normal mt-0.5 font-sans">
               Sin tarjetas ni transferencias previas. Cero riesgo.
             </p>
           </div>
-          <div className="hidden sm:flex flex-col items-center bg-white/10 backdrop-blur-sm px-3 py-2 rounded-xl border border-white/20 text-center">
+          <div className="hidden sm:flex flex-col items-center bg-white/10 backdrop-blur-sm px-3 py-2 rounded-xl border border-white/20 text-center font-heading">
             <Truck className="w-6 h-6 text-emerald-100 mb-1" />
             <span className="text-[10px] font-bold">100% Gratis</span>
           </div>
@@ -103,14 +103,14 @@ export const HomeClient: React.FC<HomeClientProps> = ({
 
       {/* Catálogo de Productos Mobile-First (Cada uno con enlace directo a /producto/[id]) */}
       <div className="max-w-4xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-between mb-3 text-xs text-slate-500 font-semibold">
+        <div className="flex items-center justify-between mb-3 text-xs text-slate-500 font-medium font-sans">
           <span>
             {isLoading
               ? 'Buscando productos...'
               : 'Catálogo Oficial • Envío Gratis y Pago en Casa'}
           </span>
           {searchQuery && (
-            <span className="text-emerald-700">
+            <span className="text-emerald-700 font-semibold font-sans">
               Búsqueda: &ldquo;{searchQuery}&rdquo;
             </span>
           )}
@@ -130,11 +130,11 @@ export const HomeClient: React.FC<HomeClientProps> = ({
                 setPage((p) => Math.max(1, p - 1));
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="px-4 py-2 bg-white text-slate-700 text-xs font-bold rounded-xl border border-slate-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition"
+              className="px-4 py-2 bg-white text-slate-700 text-xs font-bold rounded-xl border border-slate-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition font-heading"
             >
               Anterior
             </button>
-            <span className="text-xs font-bold text-slate-600 px-3">
+            <span className="text-xs font-semibold text-slate-600 px-3 font-sans">
               Página {page} de {totalPages}
             </span>
             <button
@@ -143,7 +143,7 @@ export const HomeClient: React.FC<HomeClientProps> = ({
                 setPage((p) => Math.min(totalPages, p + 1));
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="px-4 py-2 bg-white text-slate-700 text-xs font-bold rounded-xl border border-slate-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition"
+              className="px-4 py-2 bg-white text-slate-700 text-xs font-bold rounded-xl border border-slate-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition font-heading"
             >
               Siguiente
             </button>
@@ -155,25 +155,25 @@ export const HomeClient: React.FC<HomeClientProps> = ({
       <footer className="bg-white border-t border-slate-200/80 py-8 px-4 mt-8">
         <div className="max-w-4xl mx-auto text-center space-y-3">
           <div className="flex items-center justify-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">
+            <div className="w-6 h-6 rounded-md bg-emerald-600 flex items-center justify-center text-white font-extrabold text-xs font-heading">
               PF
             </div>
-            <span className="text-sm font-black text-slate-800">
+            <span className="text-sm font-extrabold text-slate-800 font-heading">
               PideFácil.co
             </span>
           </div>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+          <p className="text-xs text-slate-500 max-w-sm mx-auto font-sans font-normal">
             La plataforma líder de comercio electrónico con Pago Contra Entrega en Colombia.
             Envíos asegurados a más de 1.100 municipios del país.
           </p>
-          <div className="flex items-center justify-center gap-4 text-xs font-semibold text-slate-600 pt-2">
+          <div className="flex items-center justify-center gap-4 text-xs font-medium text-slate-600 pt-2 font-sans">
             <span>🛡️ Garantía Dropi</span>
             <span>•</span>
             <span>💵 Pago en Efectivo</span>
             <span>•</span>
             <span>🚚 Despacho Nacional</span>
           </div>
-          <p className="text-[10px] text-slate-400 pt-2">
+          <p className="text-[10px] text-slate-400 pt-2 font-sans">
             © 2026 PideFácil Colombia — Todos los derechos reservados.
           </p>
         </div>

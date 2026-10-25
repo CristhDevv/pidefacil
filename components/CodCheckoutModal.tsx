@@ -172,10 +172,10 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
           <div className="flex items-center gap-2">
             <span className="text-xl">🇨🇴</span>
             <div>
-              <h2 className="text-sm font-extrabold leading-none">
+              <h2 className="text-sm font-extrabold leading-none font-heading">
                 Pide Fácil — Pago Contra Entrega
               </h2>
-              <p className="text-[10px] text-emerald-100 font-medium">
+              <p className="text-[10px] text-emerald-100 font-medium font-sans">
                 Pagas en efectivo al transportador en tu casa
               </p>
             </div>
@@ -191,19 +191,19 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
         {/* Resumen Compacto del Pedido */}
         <div className="bg-emerald-50/70 border-b border-emerald-100 px-4 py-2.5 flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-800 line-clamp-1">
+            <p className="text-xs font-bold text-slate-800 line-clamp-1 font-heading">
               {product.name}
             </p>
-            <p className="text-[11px] text-emerald-800 font-bold">
+            <p className="text-[11px] text-emerald-800 font-medium font-sans">
               Oferta: {quantityOfferLabel}
               {selectedVariation ? ` • Opción: ${selectedVariation}` : ''}
             </p>
           </div>
           <div className="text-right flex-shrink-0 ml-3">
-            <span className="text-base font-black text-emerald-800">
+            <span className="price-tag font-price text-base sm:text-lg font-extrabold text-emerald-800 tracking-tight">
               {formatCOP(totalAmount)}
             </span>
-            <p className="text-[9px] text-slate-500 font-bold">TOTAL A PAGAR</p>
+            <p className="text-[9px] text-slate-500 font-bold font-sans">TOTAL A PAGAR</p>
           </div>
         </div>
 
@@ -416,7 +416,7 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-black py-3.5 px-4 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-base active:scale-[0.98]"
+              className="btn-cta font-heading w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-base active:scale-[0.98]"
             >
               {isSubmitting ? (
                 <>
@@ -425,13 +425,13 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
                 </>
               ) : (
                 <>
-                  <span>CONFIRMAR PEDIDO CONTRA ENTREGA</span>
+                  <span className="font-heading font-extrabold">CONFIRMAR PEDIDO CONTRA ENTREGA</span>
                   <span>—</span>
-                  <span>{formatCOP(totalAmount)}</span>
+                  <span className="font-price font-extrabold text-lg">{formatCOP(totalAmount)}</span>
                 </>
               )}
             </button>
-            <p className="text-[10px] text-center text-slate-500 font-medium mt-2 flex items-center justify-center gap-1">
+            <p className="text-[10px] text-center text-slate-500 font-medium mt-2 flex items-center justify-center gap-1 font-sans">
               <Truck className="w-3.5 h-3.5 text-emerald-600" />
               <span>Despacho exprés desde bodega oficial en Colombia</span>
             </p>

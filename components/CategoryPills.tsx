@@ -36,10 +36,10 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
             <button
               key={cat.id}
               onClick={() => onSelectCategory(cat.id)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              className={`category-pill font-sans flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs transition-all ${
                 isSelected
-                  ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
+                  ? 'bg-emerald-600 text-white font-bold shadow-sm ring-2 ring-emerald-600/30'
+                  : 'bg-slate-100 text-slate-700 font-medium hover:bg-slate-200/80'
               }`}
             >
               <span>{cat.icon}</span>

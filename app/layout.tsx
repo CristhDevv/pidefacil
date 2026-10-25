@@ -23,9 +23,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className="bg-[#F8FAFC]">
-      <body className="min-h-screen bg-[#F8FAFC] text-slate-900 antialiased selection:bg-emerald-100 selection:text-emerald-900 pb-16 md:pb-0">
+      <head>
+        {/* Preconexión optimizada a Google Fonts */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Google Fonts: Plus Jakarta Sans (600, 700, 800) + DM Sans (400, 500, 700) */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400;1,9..40,500;1,9..40,700&family=Plus+Jakarta+Sans:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans antialiased selection:bg-emerald-100 selection:text-emerald-900 pb-16 md:pb-0">
         {/* Cintillo Superior Fijo de Confianza y Urgencia */}
-        <header className="sticky top-0 z-50">
+        <header className="sticky top-0 z-50 font-sans">
           <div className="bg-emerald-700 text-white text-xs font-semibold py-1.5 px-3 text-center tracking-wide flex items-center justify-center gap-1.5 shadow-sm">
             <span>🇨🇴</span>
             <span>Envío Gratis + Pago Contra Entrega en toda Colombia</span>
