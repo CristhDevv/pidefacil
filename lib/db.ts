@@ -39,6 +39,13 @@ export interface DbProduct {
   deactivation_reason: string | null;
   crop_top_pct?: number | null;
   crop_bottom_pct?: number | null;
+  weight_kg?: number | null;
+  length_cm?: number | null;
+  width_cm?: number | null;
+  height_cm?: number | null;
+  origin_city_id?: number | null;
+  origin_city_name?: string | null;
+  display_priority?: number;
   first_seen_at: string;
   last_seen_at: string;
   updated_at: string;
@@ -200,6 +207,12 @@ function formatProductFromSupabase(row: any): DbProduct {
     description_is_empty: Number(row.description_is_empty || 0),
     crop_top_pct: Number(row.crop_top_pct || 0),
     crop_bottom_pct: Number(row.crop_bottom_pct || 0),
+    weight_kg: row.weight_kg !== null && row.weight_kg !== undefined ? Number(row.weight_kg) : null,
+    length_cm: row.length_cm !== null && row.length_cm !== undefined ? Number(row.length_cm) : null,
+    width_cm: row.width_cm !== null && row.width_cm !== undefined ? Number(row.width_cm) : null,
+    height_cm: row.height_cm !== null && row.height_cm !== undefined ? Number(row.height_cm) : null,
+    origin_city_id: row.origin_city_id !== null && row.origin_city_id !== undefined ? Number(row.origin_city_id) : null,
+    origin_city_name: row.origin_city_name || null,
   };
 }
 
@@ -856,7 +869,7 @@ export async function getAdminProducts(options?: {
     try {
       let query = supabaseAdmin
         .from('products')
-        .select('id_dropi, name, sku, type, cost_cop, suggested_price_cop, sell_price_cop, stock_real, supplier_name, image_url, categories, display_priority, is_active, description_is_empty, description');
+        .select('id_dropi, name, sku, type, cost_cop, suggested_price_cop, sell_price_cop, stock_real, supplier_name, image_url, categories, display_priority, is_active, description_is_empty, description, weight_kg, length_cm, width_cm, height_cm, origin_city_id, origin_city_name');
 
       if (status === 'activos') {
         query = query.eq('is_active', 1);
@@ -927,7 +940,17 @@ export async function getAdminProducts(options?: {
  */
 export async function updateProductAdmin(
   id_dropi: number,
-  updates: { is_active?: number; display_priority?: number; sell_price_cop?: number }
+  updates: {
+    is_active?: number;
+    display_priority?: number;
+    sell_price_cop?: number;
+    weight_kg?: number | null;
+    length_cm?: number | null;
+    width_cm?: number | null;
+    height_cm?: number | null;
+    origin_city_id?: number | null;
+    origin_city_name?: string | null;
+  }
 ): Promise<boolean> {
   const now = new Date().toISOString();
 
@@ -940,6 +963,12 @@ export async function updateProductAdmin(
       if (updates.is_active !== undefined) payload.is_active = updates.is_active;
       if (updates.display_priority !== undefined) payload.display_priority = updates.display_priority;
       if (updates.sell_price_cop !== undefined) payload.sell_price_cop = updates.sell_price_cop;
+      if (updates.weight_kg !== undefined) payload.weight_kg = updates.weight_kg;
+      if (updates.length_cm !== undefined) payload.length_cm = updates.length_cm;
+      if (updates.width_cm !== undefined) payload.width_cm = updates.width_cm;
+      if (updates.height_cm !== undefined) payload.height_cm = updates.height_cm;
+      if (updates.origin_city_id !== undefined) payload.origin_city_id = updates.origin_city_id;
+      if (updates.origin_city_name !== undefined) payload.origin_city_name = updates.origin_city_name;
 
       const { error } = await supabaseAdmin
         .from('products')
@@ -955,7 +984,7 @@ export async function updateProductAdmin(
   // Fallback SQLite
   try {
     const sets: string[] = ['updated_at = ?'];
-    const params: (string | number)[] = [now];
+    const params: (string | number | null)[] = [now];
 
     if (updates.is_active !== undefined) {
       sets.push('is_active = ?');
@@ -968,6 +997,30 @@ export async function updateProductAdmin(
     if (updates.sell_price_cop !== undefined) {
       sets.push('sell_price_cop = ?');
       params.push(updates.sell_price_cop);
+    }
+    if (updates.weight_kg !== undefined) {
+      sets.push('weight_kg = ?');
+      params.push(updates.weight_kg);
+    }
+    if (updates.length_cm !== undefined) {
+      sets.push('length_cm = ?');
+      params.push(updates.length_cm);
+    }
+    if (updates.width_cm !== undefined) {
+      sets.push('width_cm = ?');
+      params.push(updates.width_cm);
+    }
+    if (updates.height_cm !== undefined) {
+      sets.push('height_cm = ?');
+      params.push(updates.height_cm);
+    }
+    if (updates.origin_city_id !== undefined) {
+      sets.push('origin_city_id = ?');
+      params.push(updates.origin_city_id);
+    }
+    if (updates.origin_city_name !== undefined) {
+      sets.push('origin_city_name = ?');
+      params.push(updates.origin_city_name);
     }
 
     params.push(id_dropi);

@@ -6,6 +6,9 @@ import Image from 'next/image';
 import { formatCOP } from '@/config/pricing';
 import { getProductDisplayImageUrl } from '@/lib/image-url';
 import { ImageModerationTab } from '@/components/admin/ImageModerationTab';
+import { SellerLiquidationTab } from '@/components/admin/SellerLiquidationTab';
+import { DropiTokenCard } from '@/components/admin/DropiTokenCard';
+import { ProductDimensionsModal } from '@/components/admin/ProductDimensionsModal';
 import {
   Package,
   Sliders,
@@ -44,6 +47,7 @@ import {
   Bot,
   Zap,
   Key,
+  Box,
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -55,7 +59,11 @@ export default function AdminPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // --- NAVEGACIÓN DE PESTAÑAS ---
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'moderation' | 'metrics' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'liquidations' | 'moderation' | 'metrics' | 'settings'>('orders');
+
+  // --- MODAL DE DIMENSIONES & ENVÍO ---
+  const [selectedProductForDimensions, setSelectedProductForDimensions] = useState<any | null>(null);
+  const [isDimensionsModalOpen, setIsDimensionsModalOpen] = useState(false);
 
   // --- DATOS GLOBALES ---
   const [stats, setStats] = useState<any>(null);
@@ -314,6 +322,35 @@ export default function AdminPage() {
       alert('Error al cambiar prioridad');
     } finally {
       setUpdatingProductId(null);
+    }
+  };
+
+  // Handler para guardar dimensiones físicas y origen Dropi
+  const handleSaveDimensions = async (updatedFields: {
+    weight_kg: number | null;
+    length_cm: number | null;
+    width_cm: number | null;
+    height_cm: number | null;
+    origin_city_id: number | null;
+    origin_city_name: string | null;
+  }) => {
+    if (!selectedProductForDimensions) return;
+    const id_dropi = selectedProductForDimensions.id_dropi;
+    const res = await fetch('/api/admin/products', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_dropi,
+        ...updatedFields,
+      }),
+    });
+    const json = await res.json();
+    if (json.success) {
+      setAdminProducts((prev) =>
+        prev.map((p) => (p.id_dropi === id_dropi ? { ...p, ...updatedFields } : p))
+      );
+    } else {
+      throw new Error(json.error || 'No se pudo actualizar dimensiones');
     }
   };
 
@@ -677,6 +714,18 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
             <span className="text-[10px] text-slate-400 font-semibold hidden sm:inline">
               (232k+)
             </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('liquidations')}
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
+              activeTab === 'liquidations'
+                ? 'border-emerald-600 text-emerald-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <DollarSign className="w-4 h-4 text-emerald-600" />
+            <span>💰 Liquidaciones Vendedores</span>
           </button>
 
           <button
@@ -1126,11 +1175,38 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
                             <span>•</span>
                             <span>Venta: <strong className="text-emerald-700 font-bold">{formatCOP(p.sell_price_cop)}</strong></span>
                           </div>
+
+                          <div className="flex flex-wrap items-center gap-2 text-[10px] mt-1">
+                            {p.weight_kg && p.length_cm ? (
+                              <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 inline-flex items-center gap-1">
+                                <span>📦 {p.weight_kg}kg ({p.length_cm}×{p.width_cm}×{p.height_cm}cm)</span>
+                                <span>•</span>
+                                <span>📍 {p.origin_city_name || 'Origen Dropi'}</span>
+                              </span>
+                            ) : (
+                              <span className="text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60 inline-flex items-center gap-1">
+                                <span>⚠️ Sin peso/medidas (No cotizable)</span>
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Controles de Gestión: Activar/Pausar & Prioridad */}
+                      {/* Controles de Gestión: Activar/Pausar & Prioridad & Dimensiones */}
                       <div className="flex items-center gap-2 justify-end flex-shrink-0">
+                        {/* Botón Editar Medidas y Origen */}
+                        <button
+                          onClick={() => {
+                            setSelectedProductForDimensions(p);
+                            setIsDimensionsModalOpen(true);
+                          }}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1 border border-slate-200/60"
+                          title="Configurar medidas físicas y ciudad remitente"
+                        >
+                          <Box className="w-3.5 h-3.5 text-slate-500" />
+                          <span className="hidden sm:inline">Dimensiones</span>
+                        </button>
+
                         {/* Selector de Prioridad */}
                         <div className="flex items-center gap-1">
                           <label className="text-[10px] text-slate-400 font-semibold hidden md:inline">
@@ -1201,6 +1277,11 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
             )}
           </div>
         )}
+
+        {/* ==================================================================== */}
+        {/* PESTAÑA: LIQUIDACIONES DE VENDEDORES (MODELO DROPI COD)             */}
+        {/* ==================================================================== */}
+        {activeTab === 'liquidations' && <SellerLiquidationTab />}
 
         {/* ==================================================================== */}
         {/* PESTAÑA 3: MODERACIÓN DE FOTOS Y PRECIOS QUEMADOS (OCR)             */}
@@ -1317,10 +1398,13 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
         )}
 
         {/* ==================================================================== */}
-        {/* PESTAÑA 4: AJUSTES COMERCIALES                                       */}
+        {/* PESTAÑA 4: AJUSTES COMERCIALES & TOKEN DROPI                         */}
         {/* ==================================================================== */}
         {activeTab === 'settings' && (
-          <div className="max-w-2xl bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-5">
+          <div className="max-w-2xl space-y-6">
+            <DropiTokenCard />
+
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-5">
             <div>
               <h2 className="text-base font-black text-slate-900">
                 Calibración Comercial & Configuración
@@ -1510,8 +1594,22 @@ CÓDIGO PEDIDO PIDEFÁCIL: ${order.order_number}`;
               </div>
             </form>
           </div>
+          </div>
         )}
       </main>
+
+      {/* Modal de edición de medidas y origen de envío */}
+      {selectedProductForDimensions && (
+        <ProductDimensionsModal
+          product={selectedProductForDimensions}
+          isOpen={isDimensionsModalOpen}
+          onClose={() => {
+            setIsDimensionsModalOpen(false);
+            setSelectedProductForDimensions(null);
+          }}
+          onSave={handleSaveDimensions}
+        />
+      )}
     </div>
   );
 }

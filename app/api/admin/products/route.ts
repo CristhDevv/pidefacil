@@ -49,7 +49,18 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id_dropi, is_active, display_priority, sell_price_cop } = body;
+    const {
+      id_dropi,
+      is_active,
+      display_priority,
+      sell_price_cop,
+      weight_kg,
+      length_cm,
+      width_cm,
+      height_cm,
+      origin_city_id,
+      origin_city_name,
+    } = body;
 
     if (!id_dropi) {
       return NextResponse.json(
@@ -62,6 +73,12 @@ export async function PATCH(request: NextRequest) {
       is_active,
       display_priority,
       sell_price_cop,
+      weight_kg: weight_kg !== undefined ? (weight_kg === null || weight_kg === '' ? null : Number(weight_kg)) : undefined,
+      length_cm: length_cm !== undefined ? (length_cm === null || length_cm === '' ? null : Number(length_cm)) : undefined,
+      width_cm: width_cm !== undefined ? (width_cm === null || width_cm === '' ? null : Number(width_cm)) : undefined,
+      height_cm: height_cm !== undefined ? (height_cm === null || height_cm === '' ? null : Number(height_cm)) : undefined,
+      origin_city_id: origin_city_id !== undefined ? (origin_city_id === null || origin_city_id === '' ? null : Number(origin_city_id)) : undefined,
+      origin_city_name: origin_city_name !== undefined ? (origin_city_name ? String(origin_city_name).trim() : null) : undefined,
     });
 
     if (!updated) {
