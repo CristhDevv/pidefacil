@@ -4,14 +4,17 @@ import sharp from 'sharp';
 // Patrones comerciales requeridos:
 // 1. Símbolo "$"
 // 2. Secuencias de precio (49.900, 49,900, 49900)
-// 3. Palabras clave: PRECIO, OFERTA, MAYORISTA, WHATSAPP, PROMO, DESCUENTO
+// 3. Palabras clave: PRECIO, COSTO, OFERTA, MAYORISTA, WHATSAPP, PROMO, DESCUENTO
 // 4. Teléfonos colombianos de 10 dígitos (3XX XXX XXXX o 10 dígitos continuos)
 const PRICE_DOLLAR_REGEX = /\$/;
 const PRICE_DOT_COMMA_REGEX = /\b\d{1,3}[.,]\d{3}\b/;
 const PRICE_PLAIN_REGEX = /\b[1-9]\d{4,5}\b/;
 const PRICE_PREFIX_REGEX = /\b(?:precio|costo|valor|pesos|paga|pago|combo)\s*[:=]?\s*[\$]?\s*\d+/i;
-const KEYWORDS_REGEX = /\b(?:PRECIO|OFERTA|MAYORISTA|MAYOREO|DISTRIBUIDOR|WHATSAPP|WSP|PROMOCION|PROMO|DESCUENTO|LIQUIDACION)\b/i;
+const KEYWORDS_REGEX = /\b(?:PRECIO|COSTO|OFERTA|MAYORISTA|MAYOREO|DISTRIBUIDOR|DISTRIBUIDORES|WHATSAPP|WSP|PROMOCION|PROMO|DESCUENTO|LIQUIDACION|RETO|OCTUBRE|GANANCIA)\b/i;
 const PHONE_10_DIGITS_REGEX = /\b(?:3\d{2}[-.\s]?\d{3}[-.\s]?\d{4}|\d{10})\b/;
+
+// Palabras de costo o distribuidor crítico que NUNCA deben mostrarse al comprador final
+const CRITICAL_COST_REGEX = /\b(?:COSTO|MAYORISTA|MAYOREO|DISTRIBUIDOR|DISTRIBUIDORES|VALOR\s+DISTRIBUIDOR|PRECIO\s+DISTRIBUIDOR|GANANCIA)\b/i;
 
 export interface LineMatch {
   text: string;
@@ -24,6 +27,7 @@ export interface LineMatch {
 
 export interface OcrDetectionResult {
   hasBurnedPrice: boolean;
+  hasCriticalCost: boolean;
   detectedText: string;
   detectedPatterns: string[];
   matchedLines: LineMatch[];
@@ -86,11 +90,13 @@ export async function terminateOcrWorker(): Promise<void> {
 }
 
 /**
- * Escanea un buffer de imagen con Tesseract OCR y busca patrones comerciales y sus posiciones verticales
+ * Escanea un buffer de imagen con Tesseract OCR usando DOBLE PASE en paralelo:
+ * - Pase 1: Imagen estándar normalizada.
+ * - Pase 2: Imagen con realce de contraste y bordes (rescata textos amarillos, neón o sobre degradados).
  */
 export async function detectBurnedTextInImage(imageBuffer: Buffer): Promise<OcrDetectionResult> {
-  // Convertir y normalizar a PNG estándar para evitar fallos de decodificación en Leptonica/Tesseract (WebP corruptos, GIFs animados, etc.)
   let normalizedBuf: Buffer;
+  let enhancedBuf: Buffer;
   let width = 1000;
   let height = 1000;
 
@@ -100,16 +106,19 @@ export async function detectBurnedTextInImage(imageBuffer: Buffer): Promise<OcrD
     width = meta.width || 1000;
     height = meta.height || 1000;
 
-    // Normalizar a PNG limpio, redimensionando suavemente si es gigantesca (> 1600px) para acelerar OCR
     let pipeline = sharpInstance;
     if (width > 1600 || height > 1600) {
       pipeline = pipeline.resize(1600, 1600, { fit: 'inside' });
     }
+
     normalizedBuf = await pipeline.png().toBuffer();
+    // Pase de alto contraste para rescatar cajas de texto con estilos Dropi
+    enhancedBuf = await sharp(normalizedBuf).grayscale().normalize().sharpen().png().toBuffer();
   } catch (err: any) {
     console.warn('[OCR] Imagen corrupta o ilegible por Sharp:', err?.message || err);
     return {
       hasBurnedPrice: false,
+      hasCriticalCost: false,
       detectedText: '',
       detectedPatterns: [],
       matchedLines: [],
@@ -118,15 +127,22 @@ export async function detectBurnedTextInImage(imageBuffer: Buffer): Promise<OcrD
     };
   }
 
-  let ret: any;
+  let ret1: any;
+  let ret2: any;
   try {
     const scheduler = await getSharedOcrScheduler();
-    ret = await scheduler.addJob('recognize', normalizedBuf, {}, { blocks: true });
+    const results = await Promise.all([
+      scheduler.addJob('recognize', normalizedBuf, {}, { blocks: true }),
+      scheduler.addJob('recognize', enhancedBuf, {}, { blocks: true }),
+    ]);
+    ret1 = results[0];
+    ret2 = results[1];
   } catch (workerErr: any) {
     console.warn('[OCR] Error en reconocimiento Tesseract, reiniciando scheduler:', workerErr?.message || workerErr);
     await terminateOcrWorker();
     return {
       hasBurnedPrice: false,
+      hasCriticalCost: false,
       detectedText: '',
       detectedPatterns: [],
       matchedLines: [],
@@ -135,89 +151,105 @@ export async function detectBurnedTextInImage(imageBuffer: Buffer): Promise<OcrD
     };
   }
 
-  const fullText = (ret?.data?.text || '').trim();
+  const combinedText = `${ret1?.data?.text || ''}\n${ret2?.data?.text || ''}`.trim();
   const matchedLines: LineMatch[] = [];
   const allDetectedPatterns: Set<string> = new Set();
+  const seenLineKeys = new Set<string>();
+  let hasCriticalCost = false;
 
-  // Recorrer los bloques y líneas con coordenadas precisas
-  for (const block of ret.data.blocks || []) {
-    for (const para of block.paragraphs || []) {
-      for (const line of para.lines || []) {
-        const rawLineText = (line.text || '').trim();
-        if (!rawLineText || rawLineText.length < 2) continue;
+  const processBlocks = (blocks: any[]) => {
+    for (const block of blocks || []) {
+      for (const para of block.paragraphs || []) {
+        for (const line of para.lines || []) {
+          const rawLineText = (line.text || '').trim();
+          if (!rawLineText || rawLineText.length < 2) continue;
 
-        const linePatterns: string[] = [];
+          const linePatterns: string[] = [];
 
-        // 1. Check "$"
-        if (PRICE_DOLLAR_REGEX.test(rawLineText)) {
-          linePatterns.push('$');
-        }
-
-        // 2. Check precio con punto/coma (ej: 49.900, 129,900)
-        const dotMatch = rawLineText.match(PRICE_DOT_COMMA_REGEX);
-        if (dotMatch) {
-          linePatterns.push(dotMatch[0]);
-        }
-
-        // 3. Check precio plano de 5 a 6 dígitos (ej: 49900)
-        const plainMatch = rawLineText.match(PRICE_PLAIN_REGEX);
-        if (plainMatch && !dotMatch) {
-          linePatterns.push(plainMatch[0]);
-        }
-
-        // 4. Check prefijo de precio
-        const prefixMatch = rawLineText.match(PRICE_PREFIX_REGEX);
-        if (prefixMatch) {
-          linePatterns.push(prefixMatch[0]);
-        }
-
-        // 5. Check palabras clave (PRECIO, OFERTA, MAYORISTA, WHATSAPP, etc.)
-        const kwMatch = rawLineText.match(KEYWORDS_REGEX);
-        if (kwMatch) {
-          linePatterns.push(kwMatch[0].toUpperCase());
-        }
-
-        // 6. Check teléfono de 10 dígitos
-        const phoneMatch = rawLineText.match(PHONE_10_DIGITS_REGEX);
-        if (phoneMatch) {
-          linePatterns.push(phoneMatch[0]);
-        }
-
-        if (linePatterns.length > 0) {
-          linePatterns.forEach((p) => allDetectedPatterns.add(p));
-
-          const topRatio = Math.max(0, Math.min(1, line.bbox.y0 / height));
-          const bottomRatio = Math.max(0, Math.min(1, line.bbox.y1 / height));
-
-          // Clasificación de Zona:
-          // Franja superior: <= 22% del alto
-          // Franja inferior: >= 78% del alto
-          // Centro: 22% a 78%
-          let zone: 'top' | 'center' | 'bottom' = 'center';
-          if (bottomRatio <= 0.22) {
-            zone = 'top';
-          } else if (topRatio >= 0.78) {
-            zone = 'bottom';
-          } else {
-            zone = 'center';
+          // 1. Check "$"
+          if (PRICE_DOLLAR_REGEX.test(rawLineText)) {
+            linePatterns.push('$');
           }
 
-          matchedLines.push({
-            text: rawLineText,
-            matchedPatterns: linePatterns,
-            bbox: line.bbox,
-            zone,
-            topRatio,
-            bottomRatio,
-          });
+          // 2. Check precio con punto/coma (ej: 49.900, 129,900)
+          const dotMatch = rawLineText.match(PRICE_DOT_COMMA_REGEX);
+          if (dotMatch) {
+            linePatterns.push(dotMatch[0]);
+          }
+
+          // 3. Check precio plano de 5 a 6 dígitos (ej: 49900)
+          const plainMatch = rawLineText.match(PRICE_PLAIN_REGEX);
+          if (plainMatch && !dotMatch) {
+            linePatterns.push(plainMatch[0]);
+          }
+
+          // 4. Check prefijo de precio
+          const prefixMatch = rawLineText.match(PRICE_PREFIX_REGEX);
+          if (prefixMatch) {
+            linePatterns.push(prefixMatch[0]);
+          }
+
+          // 5. Check palabras clave (PRECIO, COSTO, OFERTA, MAYORISTA, WHATSAPP, etc.)
+          const kwMatch = rawLineText.match(KEYWORDS_REGEX);
+          if (kwMatch) {
+            linePatterns.push(kwMatch[0].toUpperCase());
+          }
+
+          // 6. Check palabras críticas de costo/proveedor
+          if (CRITICAL_COST_REGEX.test(rawLineText)) {
+            hasCriticalCost = true;
+          }
+
+          // 7. Check teléfono de 10 dígitos
+          const phoneMatch = rawLineText.match(PHONE_10_DIGITS_REGEX);
+          if (phoneMatch) {
+            linePatterns.push(phoneMatch[0]);
+          }
+
+          if (linePatterns.length > 0) {
+            linePatterns.forEach((p) => allDetectedPatterns.add(p));
+
+            const topRatio = Math.max(0, Math.min(1, line.bbox.y0 / height));
+            const bottomRatio = Math.max(0, Math.min(1, line.bbox.y1 / height));
+
+            // Evitar duplicar la misma línea detectada en ambos pases
+            const lineKey = `${Math.round(topRatio * 50)}_${rawLineText.slice(0, 15).toLowerCase()}`;
+            if (seenLineKeys.has(lineKey)) continue;
+            seenLineKeys.add(lineKey);
+
+            // Franja superior: <= 22% del alto
+            // Franja inferior: >= 78% del alto
+            // Centro: 22% a 78%
+            let zone: 'top' | 'center' | 'bottom' = 'center';
+            if (bottomRatio <= 0.22) {
+              zone = 'top';
+            } else if (topRatio >= 0.78) {
+              zone = 'bottom';
+            } else {
+              zone = 'center';
+            }
+
+            matchedLines.push({
+              text: rawLineText,
+              matchedPatterns: linePatterns,
+              bbox: line.bbox,
+              zone,
+              topRatio,
+              bottomRatio,
+            });
+          }
         }
       }
     }
-  }
+  };
+
+  processBlocks(ret1?.data?.blocks);
+  processBlocks(ret2?.data?.blocks);
 
   return {
     hasBurnedPrice: allDetectedPatterns.size > 0,
-    detectedText: fullText,
+    hasCriticalCost,
+    detectedText: combinedText,
     detectedPatterns: Array.from(allDetectedPatterns),
     matchedLines,
     imageWidth: width,
@@ -226,10 +258,10 @@ export async function detectBurnedTextInImage(imageBuffer: Buffer): Promise<OcrD
 }
 
 /**
- * Motor de decisión de corrección automática según las reglas del usuario:
+ * Motor de decisión de corrección automática según las reglas de negocio de PideFácil:
  * a) Si otra imagen de la galería está limpia, ponerla como imagen principal.
- * b) Si el texto está en franja superior o inferior (fuera del centro), aplicar recorte (12-22%).
- * c) Si ninguna imagen sirve ni se puede recortar sin dañar el producto (centro), desactivar el producto.
+ * b) Si el texto detectado está en la franja superior o inferior (UN SOLO EXTREMO y <= 18%), aplicar recorte dinámico.
+ * c) Si el texto dice "COSTO" / "MAYORISTA", o está en ambos extremos (volante publicitario), o en el centro: DESACTIVAR.
  */
 export function determineAutomaticCorrection(options: {
   primaryOcr: OcrDetectionResult;
@@ -268,48 +300,86 @@ export function determineAutomaticCorrection(options: {
     };
   }
 
-  // 2. REGLA 2b: Evaluar si el texto está en franjas recortables (superior o inferior)
-  const hasCenterLines = primaryOcr.matchedLines.some((l) => l.zone === 'center');
-  const topLines = primaryOcr.matchedLines.filter((l) => l.zone === 'top');
-  const bottomLines = primaryOcr.matchedLines.filter((l) => l.zone === 'bottom');
-
-  if (!hasCenterLines && (topLines.length > 0 || bottomLines.length > 0)) {
-    let cropTopPct = 0;
-    let cropBottomPct = 0;
-
-    if (topLines.length > 0) {
-      const maxBottom = Math.max(...topLines.map((l) => l.bottomRatio));
-      // Margen de seguridad +3%, clamped entre 12% y 22%
-      cropTopPct = Math.min(22, Math.max(12, Math.ceil(maxBottom * 100) + 3));
-    }
-
-    if (bottomLines.length > 0) {
-      const minTop = Math.min(...bottomLines.map((l) => l.topRatio));
-      // Margen de seguridad +3%, clamped entre 12% y 22%
-      cropBottomPct = Math.min(22, Math.max(12, Math.ceil((1 - minTop) * 100) + 3));
-    }
-
-    const correctionType =
-      cropTopPct > 0 && cropBottomPct > 0
-        ? 'crop_both'
-        : cropTopPct > 0
-        ? 'crop_top'
-        : 'crop_bottom';
-
+  // Si tiene palabras explícitas de costo proveedor ("COSTO", "MAYORISTA", "DISTRIBUIDOR"),
+  // NO se arriesga recorte parcial en la tienda del cliente: Desactivar directamente si no hay galería limpia.
+  if (primaryOcr.hasCriticalCost) {
     return {
       has_burned_price: 1,
       detected_text: primaryOcr.detectedText,
       detected_patterns: primaryOcr.detectedPatterns,
       line_details: primaryOcr.matchedLines,
       clean_gallery_urls: [],
-      correction_applied: correctionType,
-      crop_top_pct: cropTopPct,
-      crop_bottom_pct: cropBottomPct,
+      correction_applied: 'deactivated',
+      crop_top_pct: 0,
+      crop_bottom_pct: 0,
       active_image_url: originalImageUrl,
     };
   }
 
-  // 3. REGLA 2c: Texto en el centro o recorte invasivo -> Desactivar producto
+  const hasCenterLines = primaryOcr.matchedLines.some((l) => l.zone === 'center');
+  const topLines = primaryOcr.matchedLines.filter((l) => l.zone === 'top');
+  const bottomLines = primaryOcr.matchedLines.filter((l) => l.zone === 'bottom');
+
+  // Si tiene textos en AMBOS extremos (arriba y abajo), es un banner/flyer publicitario completo:
+  // Recortar arriba y abajo destruiría el producto (~40% recortado). Se desactiva.
+  if (topLines.length > 0 && bottomLines.length > 0) {
+    return {
+      has_burned_price: 1,
+      detected_text: primaryOcr.detectedText,
+      detected_patterns: primaryOcr.detectedPatterns,
+      line_details: primaryOcr.matchedLines,
+      clean_gallery_urls: [],
+      correction_applied: 'deactivated',
+      crop_top_pct: 0,
+      crop_bottom_pct: 0,
+      active_image_url: originalImageUrl,
+    };
+  }
+
+  // 2. REGLA 2b: Si el texto está confinado en un SOLO extremo (superior o inferior)
+  if (!hasCenterLines) {
+    // Caso 1: Solo en franja superior
+    if (topLines.length > 0 && bottomLines.length === 0) {
+      const maxBottom = Math.max(...topLines.map((l) => l.bottomRatio));
+      const cropTopPct = Math.ceil(maxBottom * 100) + 3;
+
+      if (cropTopPct <= 18) {
+        return {
+          has_burned_price: 1,
+          detected_text: primaryOcr.detectedText,
+          detected_patterns: primaryOcr.detectedPatterns,
+          line_details: primaryOcr.matchedLines,
+          clean_gallery_urls: [],
+          correction_applied: 'crop_top',
+          crop_top_pct: Math.max(12, cropTopPct),
+          crop_bottom_pct: 0,
+          active_image_url: originalImageUrl,
+        };
+      }
+    }
+
+    // Caso 2: Solo en franja inferior
+    if (bottomLines.length > 0 && topLines.length === 0) {
+      const minTop = Math.min(...bottomLines.map((l) => l.topRatio));
+      const cropBottomPct = Math.ceil((1 - minTop) * 100) + 3;
+
+      if (cropBottomPct <= 18) {
+        return {
+          has_burned_price: 1,
+          detected_text: primaryOcr.detectedText,
+          detected_patterns: primaryOcr.detectedPatterns,
+          line_details: primaryOcr.matchedLines,
+          clean_gallery_urls: [],
+          correction_applied: 'crop_bottom',
+          crop_top_pct: 0,
+          crop_bottom_pct: Math.max(12, cropBottomPct),
+          active_image_url: originalImageUrl,
+        };
+      }
+    }
+  }
+
+  // 3. REGLA 2c: Texto en el centro, costo invasivo o recorte > 18% -> Desactivar producto
   return {
     has_burned_price: 1,
     detected_text: primaryOcr.detectedText,

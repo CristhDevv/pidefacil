@@ -11,6 +11,9 @@ import dotenv from 'dotenv';
 if (typeof window === 'undefined') {
   dotenv.config({ path: '.env.local' });
   dotenv.config();
+  if (process.env.NODE_ENV !== 'production') {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  }
 }
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
