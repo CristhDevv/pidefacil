@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { ClientProviders } from '@/components/ClientProviders';
 
 export const metadata: Metadata = {
   title: 'PideFácil — Pide fácil, paga en casa | Colombia',
@@ -42,7 +43,9 @@ export default function RootLayout({
           </div>
         </header>
 
-        {children}
+        <ClientProviders>
+          {children}
+        </ClientProviders>
       </body>
     </html>
   );

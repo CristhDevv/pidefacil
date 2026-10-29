@@ -10,6 +10,7 @@ import { detectPackOfferInfo } from '@/lib/pack-detector';
 import { getProductDisplayImageUrl } from '@/lib/image-url';
 import { CodCheckoutModal } from '@/components/CodCheckoutModal';
 import { OrderSuccessModal } from '@/components/OrderSuccessModal';
+import { useAuth } from '@/context/AuthContext';
 import {
   ArrowLeft,
   ShieldCheck,
@@ -23,12 +24,17 @@ import {
   RotateCcw,
   Clock,
   ShoppingBag,
+  Briefcase,
+  Crown,
+  ExternalLink,
 } from 'lucide-react';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params?.id as string;
+  const { role, isSeller, isAdmin, pricingMode } = useAuth();
+  const showRolePricing = pricingMode === 'role' && (isSeller || isAdmin || role === 'operador');
 
   const [product, setProduct] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -213,6 +219,72 @@ export default function ProductDetailPage() {
             </span>
           </div>
         </div>
+
+        {/* PANEL INTELIGENTE DE RENTABILIDAD PARA VENDEDORES COD / ADMIN */}
+        {showRolePricing && (
+          <div className="bg-gradient-to-br from-blue-900 to-indigo-950 text-white p-5 rounded-3xl shadow-lg border border-blue-800/80 space-y-4 font-sans animate-fade-in">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
+                  <Briefcase className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold tracking-tight font-heading text-white">
+                    Panel de Rentabilidad Vendedor COD
+                  </h3>
+                  <p className="text-[11px] text-blue-200">
+                    Costo directo de proveedor Dropi Colombia
+                  </p>
+                </div>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider bg-blue-500/30 border border-blue-400/40 text-blue-200 px-2.5 py-0.5 rounded-full">
+                Rol: {role.toUpperCase()}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5 bg-black/25 p-3 rounded-2xl border border-white/10 text-center">
+              <div>
+                <p className="text-[10px] text-blue-200 font-medium">Costo Dropi</p>
+                <p className="text-sm sm:text-base font-extrabold font-price text-white">
+                  {formatCOP(product.cost_cop)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-blue-200 font-medium">PVP Sugerido</p>
+                <p className="text-sm sm:text-base font-bold font-price text-slate-300">
+                  {formatCOP(product.sell_price_cop)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-emerald-300 font-medium">Tu Ganancia</p>
+                <p className="text-sm sm:text-base font-extrabold font-price text-emerald-400">
+                  +{formatCOP(Math.max(0, product.sell_price_cop - product.cost_cop))}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-blue-200/90 pt-1">
+              <div className="flex items-center gap-1.5">
+                <span>📦 Stock en Bodega:</span>
+                <span className="font-extrabold text-white">{product.stock_real} unidades</span>
+              </div>
+              {product.supplier_name && (
+                <div className="text-[11px] truncate max-w-[150px]">
+                  Proveedor: <span className="text-white font-medium">{product.supplier_name}</span>
+                </div>
+              )}
+            </div>
+
+            <Link
+              href="/seller"
+              className="w-full bg-blue-500 hover:bg-blue-600 active:scale-[0.98] text-white font-heading font-extrabold text-xs sm:text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-md"
+            >
+              <Briefcase className="w-4 h-4" />
+              <span>Cotizar Flete & Despachar en Portal Vendedor</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
 
         {/* Selector de Ofertas: 1x vs Combo 2x (Más Elegido) */}
         <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-3">

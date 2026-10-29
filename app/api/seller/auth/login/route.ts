@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySellerPassword, createSellerToken, setSellerSessionCookie } from '@/lib/seller-auth';
+import { createAdminToken } from '@/lib/auth';
 import { getSqliteDb } from '@/lib/db';
 import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 
@@ -73,6 +74,18 @@ export async function POST(request: NextRequest) {
     });
 
     setSellerSessionCookie(response, token);
+
+    if (sellerRow.role === 'admin' || sellerRow.role === 'operador') {
+      const adminToken = createAdminToken();
+      response.cookies.set('pf_admin_token', adminToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60,
+        path: '/',
+      });
+    }
+
     return response;
   } catch (error: any) {
     console.error('Error in seller login:', error);

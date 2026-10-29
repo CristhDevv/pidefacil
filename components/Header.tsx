@@ -1,11 +1,26 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, ShieldCheck, ShoppingBag, ArrowRight } from 'lucide-react';
+import {
+  Search,
+  X,
+  ShieldCheck,
+  ShoppingBag,
+  ArrowRight,
+  User,
+  Briefcase,
+  Crown,
+  LogOut,
+  ChevronDown,
+  Layers,
+  Sparkles,
+  ExternalLink,
+} from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatCOP } from '@/config/pricing';
 import { getProductDisplayImageUrl } from '@/lib/image-url';
+import { useAuth } from '@/context/AuthContext';
 
 interface HeaderProps {
   onSearch: (query: string) => void;
@@ -18,12 +33,27 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   onSelectSuggestion,
 }) => {
+  const { user, role, isLoggedIn, isSeller, isAdmin, logout, setIsLoginModalOpen, pricingMode, setPricingMode } = useAuth();
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Debounce de 250 ms exactos con búsqueda FTS5 instantánea
+  // Cerrar menús al hacer click afuera
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   useEffect(() => {
     const timer = setTimeout(async () => {
       onSearch(localQuery);
@@ -90,12 +120,146 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </Link>
 
-          {/* Badges de Confianza */}
+          {/* Badges y Acceso de Usuario Inteligente por Rol */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60 shadow-xs font-sans">
+            <div className="hidden sm:flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60 shadow-xs font-sans">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               <span>100% Seguro</span>
             </div>
+
+            {!isLoggedIn ? (
+              <button
+                type="button"
+                onClick={() => setIsLoginModalOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-extrabold text-slate-700 hover:text-emerald-700 bg-slate-100 hover:bg-emerald-50 px-3 py-1.5 rounded-full border border-slate-200/90 shadow-xs transition active:scale-95 font-sans"
+              >
+                <Briefcase className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Soy Vendedor / Entrar</span>
+              </button>
+            ) : (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full shadow-xs transition font-sans border ${
+                    role === 'admin'
+                      ? 'bg-amber-50 text-amber-900 border-amber-200/90 hover:bg-amber-100/70'
+                      : role === 'operador'
+                      ? 'bg-indigo-50 text-indigo-900 border-indigo-200/90 hover:bg-indigo-100/70'
+                      : 'bg-blue-50 text-blue-900 border-blue-200/90 hover:bg-blue-100/70'
+                  }`}
+                >
+                  {role === 'admin' ? (
+                    <Crown className="w-3.5 h-3.5 text-amber-600" />
+                  ) : (
+                    <Briefcase className="w-3.5 h-3.5 text-blue-600" />
+                  )}
+                  <span className="max-w-[95px] sm:max-w-[130px] truncate">{user?.name}</span>
+                  <span
+                    className={`text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase text-white ${
+                      role === 'admin'
+                        ? 'bg-amber-600'
+                        : role === 'operador'
+                        ? 'bg-indigo-600'
+                        : 'bg-blue-600'
+                    }`}
+                  >
+                    {role}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+
+                {/* Dropdown del Menú de Usuario */}
+                {showUserMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 p-2 z-50 animate-slide-up text-left">
+                    <div className="p-2.5 bg-slate-50 rounded-xl mb-1.5">
+                      <p className="text-xs font-black text-slate-900 truncate font-heading">
+                        {user?.name}
+                      </p>
+                      <p className="text-[11px] text-slate-500 truncate font-sans">
+                        {user?.email}
+                      </p>
+                      <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-extrabold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-md">
+                        <span>Rol activo: {role.toUpperCase()}</span>
+                      </div>
+                    </div>
+
+                    {/* Selector de modo de precios para Vendedor o Admin */}
+                    {(role === 'vendedor' || role === 'admin') && (
+                      <div className="p-2 border-b border-slate-100 mb-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                          Visualización de Precios
+                        </p>
+                        <div className="flex bg-slate-100 p-0.5 rounded-lg text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => setPricingMode('role')}
+                            className={`flex-1 py-1 rounded font-bold transition ${
+                              pricingMode === 'role'
+                                ? 'bg-white text-blue-700 shadow-xs'
+                                : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                          >
+                            💼 Costos & Ganancia
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPricingMode('public')}
+                            className={`flex-1 py-1 rounded font-bold transition ${
+                              pricingMode === 'public'
+                                ? 'bg-white text-emerald-700 shadow-xs'
+                                : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                          >
+                            🛒 Vista Cliente
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-0.5 font-sans">
+                      <Link
+                        href="/seller"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center justify-between p-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                          <span>Portal de Despachos COD</span>
+                        </div>
+                        <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-600" />
+                      </Link>
+
+                      {(role === 'admin' || role === 'operador') && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center justify-between p-2 rounded-xl text-xs font-bold text-amber-900 hover:bg-amber-50/70 transition group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Crown className="w-4 h-4 text-amber-600" />
+                            <span>Panel de Control Admin</span>
+                          </div>
+                          <ExternalLink className="w-3.5 h-3.5 text-amber-400 group-hover:text-amber-700" />
+                        </Link>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setShowUserMenu(false);
+                          await logout();
+                        }}
+                        className="w-full flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Cerrar Sesión</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
       name: seller.name,
       email: seller.email,
       phone: seller.phone,
+      role: seller.role || 'vendedor',
       status: seller.status,
     },
   });
