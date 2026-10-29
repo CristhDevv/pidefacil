@@ -7,6 +7,25 @@ export const metadata: Metadata = {
   description:
     'E-commerce Mobile-First con Pago Contra Entrega en Colombia. Pide tus productos favoritos y paga en efectivo al recibir en la puerta de tu casa.',
   keywords: ['pago contra entrega', 'colombia', 'pide facil', 'paga en casa', 'domicilio gratis'],
+  manifest: '/manifest.webmanifest',
+  applicationName: 'PideFácil',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'PideFácil',
+  },
+  formatDetection: {
+    telephone: true,
+  },
+  icons: {
+    icon: [
+      { url: '/icons/favicon-64x64.png', sizes: '64x64', type: 'image/png' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
 };
 
 export const viewport: Viewport = {
@@ -25,6 +44,14 @@ export default function RootLayout({
   return (
     <html lang="es" className="bg-[#F8FAFC]">
       <head>
+        {/* Meta tags para PWA e instalación en iOS y Android */}
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon-64x64.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="PideFácil" />
+
         {/* Preconexión optimizada a Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

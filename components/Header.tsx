@@ -15,6 +15,7 @@ import {
   Layers,
   Sparkles,
   ExternalLink,
+  Download,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -243,6 +244,25 @@ export const Header: React.FC<HeaderProps> = ({
                           <ExternalLink className="w-3.5 h-3.5 text-amber-400 group-hover:text-amber-700" />
                         </Link>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('pf_trigger_install'));
+                          }
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold text-emerald-800 hover:bg-emerald-50 transition group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Download className="w-4 h-4 text-emerald-600" />
+                          <span>Instalar App en Celular</span>
+                        </div>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-extrabold">
+                          PWA
+                        </span>
+                      </button>
 
                       <button
                         type="button"
