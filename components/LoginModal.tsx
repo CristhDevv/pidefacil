@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -136,12 +137,18 @@ export const LoginModal: React.FC = () => {
 
         {/* Encabezado */}
         <div className="p-6 pb-4 border-b border-slate-100 bg-gradient-to-b from-slate-50/80 to-white">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-xs">
-              <ShoppingBag className="w-4 h-4" />
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="relative w-8 h-8 rounded-xl overflow-hidden bg-white shadow-xs border border-slate-200">
+              <Image
+                src="/icons/icon-192x192.png"
+                alt="Logo PideFácil"
+                fill
+                className="object-contain p-0.5"
+                priority
+              />
             </div>
             <span className="text-xl font-extrabold text-slate-900 font-heading">
-              Pide<span className="text-emerald-600">Fácil</span>
+              Pide<span className="text-[#0047BA]">Fácil</span>
             </span>
           </div>
           <h2 className="text-lg font-black text-slate-900 font-heading tracking-tight">
@@ -369,7 +376,7 @@ export const LoginModal: React.FC = () => {
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium">
             <div className="flex items-center gap-1">
               <Briefcase className="w-3.5 h-3.5 text-blue-500" />
-              <span>Vendedores: Costos Dropi & Comisiones</span>
+              <span>Vendedores: Costos Mayoristas & Comisiones</span>
             </div>
             <div className="flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />

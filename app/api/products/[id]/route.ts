@@ -30,7 +30,13 @@ export async function GET(
     const duo = calculateDuoPrice(p.sell_price_cop, p.cost_cop);
     const gallery = p.gallery ? JSON.parse(p.gallery) : p.image_url ? [p.image_url] : [];
     const rawVariations = p.stock_por_variacion ? JSON.parse(p.stock_por_variacion) : [];
-    const variations = normalizeVariations(rawVariations);
+    const variations = normalizeVariations(rawVariations, p.cost_cop, p.sell_price_cop);
+
+    // Determinar rango de precios si hay variación entre variantes
+    const variationPrices = variations.map((v) => v.sell_price_cop).filter((pr) => pr > 0);
+    const minPrice = variationPrices.length > 0 ? Math.min(...variationPrices) : p.sell_price_cop;
+    const maxPrice = variationPrices.length > 0 ? Math.max(...variationPrices) : p.sell_price_cop;
+    const hasPriceVariance = minPrice !== maxPrice;
 
     return NextResponse.json(
       {
@@ -45,6 +51,9 @@ export async function GET(
           sell_price_cop: p.sell_price_cop,
           duo_price_cop: duo.duoPriceCop,
           duo_savings_cop: duo.savingsCop,
+          min_price_cop: minPrice,
+          max_price_cop: maxPrice,
+          has_price_variance: hasPriceVariance,
           stock_real: p.stock_real,
           supplier_id: p.supplier_id,
           supplier_name: p.supplier_name,

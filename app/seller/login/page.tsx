@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Lock, Mail, Phone, User, ShoppingBag, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 export default function SellerLoginPage() {
@@ -59,19 +60,25 @@ export default function SellerLoginPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center px-4">
-        <Link href="/" className="inline-flex items-center gap-2 mb-4 group">
-          <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-xl shadow-sm">
-            <ShoppingBag className="w-5 h-5" />
+        <Link href="/" className="inline-flex items-center gap-2.5 mb-4 group">
+          <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white shadow-xs border border-slate-200 flex items-center justify-center">
+            <Image
+              src="/icons/icon-192x192.png"
+              alt="Logo PideFácil"
+              fill
+              className="object-contain p-0.5"
+              priority
+            />
           </div>
-          <span className="text-2xl font-black text-slate-900 tracking-tight">
-            Pide<span className="text-emerald-600">Fácil</span>
+          <span className="text-2xl font-black text-slate-900 tracking-tight font-heading">
+            Pide<span className="text-[#0047BA]">Fácil</span>
           </span>
         </Link>
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+        <h2 className="text-2xl font-black text-slate-900 tracking-tight font-heading">
           Portal de Vendedores COD
         </h2>
         <p className="mt-1 text-xs text-slate-500 font-medium">
-          Cotización de fletes Dropi en vivo y despacho contra entrega sin pagar por adelantado.
+          Cotización de fletes en vivo y despacho contra entrega sin pagar por adelantado.
         </p>
       </div>
 

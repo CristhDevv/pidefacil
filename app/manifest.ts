@@ -48,7 +48,7 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         name: 'Portal de Vendedores COD',
         short_name: 'Vendedores',
-        description: 'Cotizar fletes Dropi y despachar pedidos',
+        description: 'Cotizar fletes y despachar pedidos',
         url: '/seller',
         icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }],
       },

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import {
   ShoppingBag,
@@ -119,12 +120,18 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <Link href="/" className="inline-flex items-center gap-2 mb-4 group">
-          <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-xl shadow-sm group-hover:bg-emerald-700 transition">
-            <ShoppingBag className="w-5 h-5 stroke-[2.5]" />
+        <Link href="/" className="inline-flex items-center gap-2.5 mb-4 group">
+          <div className="relative w-11 h-11 rounded-2xl overflow-hidden bg-white shadow-sm border border-slate-200 group-hover:scale-105 transition-transform flex items-center justify-center">
+            <Image
+              src="/icons/icon-192x192.png"
+              alt="Logo PideFácil"
+              fill
+              className="object-contain p-0.5"
+              priority
+            />
           </div>
           <span className="text-2xl font-black text-slate-900 tracking-tight font-heading">
-            Pide<span className="text-emerald-600">Fácil</span>
+            Pide<span className="text-[#0047BA]">Fácil</span>
           </span>
         </Link>
         <h1 className="text-2xl font-black text-slate-900 tracking-tight font-heading">

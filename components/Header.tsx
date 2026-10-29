@@ -103,15 +103,21 @@ export const Header: React.FC<HeaderProps> = ({
     <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-[29px] z-40 transition-all">
       <div className="max-w-4xl mx-auto px-4 py-2.5">
         <div className="flex items-center justify-between gap-3 mb-2">
-          {/* Logo PideFácil */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-extrabold text-lg shadow-sm group-hover:bg-emerald-700 transition">
-              <ShoppingBag className="w-4 h-4 stroke-[2.5]" />
+          {/* Logo PideFácil Oficial */}
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden bg-white shadow-xs border border-slate-200/80 group-hover:scale-105 transition-transform flex items-center justify-center">
+              <Image
+                src="/icons/icon-192x192.png"
+                alt="PideFácil"
+                fill
+                className="object-contain p-0.5"
+                priority
+              />
             </div>
             <div>
               <div className="flex items-baseline">
                 <span className="text-xl font-extrabold tracking-tight text-slate-900 font-heading store-logo">
-                  Pide<span className="text-emerald-600">Fácil</span>
+                  Pide<span className="text-[#0047BA]">Fácil</span>
                 </span>
                 <span className="text-xs font-bold text-slate-400 ml-0.5 font-heading">.co</span>
               </div>

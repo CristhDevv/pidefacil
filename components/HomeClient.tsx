@@ -167,7 +167,7 @@ export const HomeClient: React.FC<HomeClientProps> = ({
             Envíos asegurados a más de 1.100 municipios del país.
           </p>
           <div className="flex items-center justify-center gap-4 text-xs font-medium text-slate-600 pt-2 font-sans">
-            <span>🛡️ Garantía Dropi</span>
+            <span>🛡️ Garantía PideFácil</span>
             <span>•</span>
             <span>💵 Pago en Efectivo</span>
             <span>•</span>

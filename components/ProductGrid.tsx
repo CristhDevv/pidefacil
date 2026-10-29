@@ -16,6 +16,9 @@ export interface ProductSummary {
   cost_cop: number;
   suggested_price_cop?: number | null;
   sell_price_cop: number;
+  has_price_variance?: boolean;
+  min_price_cop?: number;
+  max_price_cop?: number;
   duo_price_cop: number;
   duo_savings_cop: number;
   stock_real: number;
@@ -118,7 +121,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                 {showRolePricing ? (
                   <div className="absolute top-1.5 left-1.5 bg-blue-600/95 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs font-sans">
                     <Briefcase className="w-2.5 h-2.5" />
-                    <span>Dropi COD</span>
+                    <span>Venta COD</span>
                   </div>
                 ) : (
                   <div className="absolute top-1.5 left-1.5 bg-amber-100/95 backdrop-blur-sm text-[#B45309] text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs border border-amber-200/50 font-sans">
@@ -147,7 +150,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                 <div className="space-y-1.5">
                   <div className="bg-blue-50/80 border border-blue-200/70 rounded-xl p-2 font-sans">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-500 font-medium">Costo Dropi:</span>
+                      <span className="text-slate-500 font-medium">Costo Mayorista:</span>
                       <span className="font-extrabold text-blue-900 font-price">
                         {formatCOP(prod.cost_cop)}
                       </span>
@@ -155,7 +158,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                     <div className="flex items-center justify-between text-[11px] mt-0.5">
                       <span className="text-slate-500 font-medium">PVP Sugerido:</span>
                       <span className="font-semibold text-slate-700 font-price">
-                        {formatCOP(prod.sell_price_cop)}
+                        {prod.has_price_variance ? 'Desde ' : ''}
+                        {formatCOP(prod.min_price_cop || prod.sell_price_cop)}
                       </span>
                     </div>
                     <div className="mt-1 pt-1 border-t border-blue-200/50 flex items-center justify-between text-[11px]">
@@ -186,7 +190,10 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                       {formatCOP(anchorPrice)}
                     </span>
                     <span className="price-tag font-price text-base sm:text-lg font-extrabold text-[#16A34A] tracking-tight">
-                      {formatCOP(prod.sell_price_cop)}
+                      {prod.has_price_variance && (
+                        <span className="text-xs font-semibold text-slate-500 mr-1">Desde</span>
+                      )}
+                      {formatCOP(prod.min_price_cop || prod.sell_price_cop)}
                     </span>
                   </div>
 

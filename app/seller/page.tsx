@@ -213,7 +213,7 @@ export default function SellerPortalPage() {
           setSelectedCarrierName(json.data.carriers[0].carrier_name);
         }
       } else {
-        setQuoteError(json.error || 'Error al cotizar con Dropi');
+        setQuoteError(json.error || 'Error al cotizar con la red de transporte');
       }
     } catch (err: any) {
       setQuoteError('Error de red al consultar cotización');
@@ -453,7 +453,7 @@ export default function SellerPortalPage() {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Buscar por nombre o Dropi ID (ej: ollas, reloj, colágeno)..."
+                        placeholder="Buscar por nombre o ID (ej: ollas, reloj, colágeno)..."
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                       />
                       {isSearching && (
@@ -482,7 +482,7 @@ export default function SellerPortalPage() {
                               <div>
                                 <p className="text-xs font-bold text-slate-800 line-clamp-1">{prod.name}</p>
                                 <p className="text-[10px] text-slate-400">
-                                  ID: #{prod.id_dropi} • {prod.supplier_name || 'Proveedor Dropi'}
+                                  ID: #{prod.id_dropi} • {prod.supplier_name || 'Bodega Nacional'}
                                 </p>
                               </div>
                             </div>
@@ -513,14 +513,14 @@ export default function SellerPortalPage() {
                           {selectedProduct.name}
                         </h4>
                         <p className="text-[10px] text-slate-500">
-                          Proveedor: <strong>{selectedProduct.supplier_name || 'Dropi'}</strong>
+                          Proveedor: <strong>{selectedProduct.supplier_name || 'Bodega Nacional'}</strong>
                         </p>
                       </div>
                     </div>
 
                     <div className="text-right">
                       <p className="text-xs font-black text-slate-900">{formatCOP(selectedProduct.cost_cop)}</p>
-                      <p className="text-[10px] text-slate-400">Costo Dropi</p>
+                      <p className="text-[10px] text-slate-400">Costo Mayorista</p>
                     </div>
                   </div>
                 )}
@@ -573,7 +573,7 @@ export default function SellerPortalPage() {
                   {/* Ciudad */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Ciudad / Municipio Destino (ID Dropi) *
+                      Ciudad / Municipio Destino *
                     </label>
                     <select
                       value={selectedCityId}
@@ -582,7 +582,7 @@ export default function SellerPortalPage() {
                     >
                       {cityOptions.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.name} (#{c.id})
+                          {c.name}
                         </option>
                       ))}
                     </select>
@@ -629,12 +629,12 @@ export default function SellerPortalPage() {
                   {isQuoting ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
-                      <span>Cotizando Flete en Vivo con Dropi...</span>
+                      <span>Cotizando Flete en Vivo con Transportadora...</span>
                     </>
                   ) : (
                     <>
                       <Truck className="w-4 h-4 text-emerald-400" />
-                      <span>COTIZAR FLETE EN VIVO (DROPI / INTER RAPIDÍSIMO)</span>
+                      <span>COTIZAR FLETE EN VIVO (ENVÍA / INTER RAPIDÍSIMO / SERVIENTREGA)</span>
                     </>
                   )}
                 </button>
@@ -728,9 +728,9 @@ export default function SellerPortalPage() {
                         <span className="font-mono">-{formatCOP(activeCarrier?.flete_total || 0)}</span>
                       </div>
 
-                      {/* LÍNEA OBLIGATORIA: Comisión de plataforma Dropi */}
+                      {/* Comisión de plataforma logística */}
                       <div className="flex justify-between items-center text-indigo-700 font-bold bg-indigo-50/60 p-1.5 rounded-lg border border-indigo-100">
-                        <span>Comisión de plataforma Dropi:</span>
+                        <span>Tarifa de Manejo y Recaudo COD:</span>
                         <span className="font-mono">-{formatCOP(dynamicDropiCommission)}</span>
                       </div>
 
@@ -831,7 +831,7 @@ export default function SellerPortalPage() {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Notas para Dropi / Transportadora</label>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Notas para Transportadora</label>
                       <input
                         type="text"
                         value={orderNotes}
@@ -856,7 +856,7 @@ export default function SellerPortalPage() {
                       )}
                     </button>
                     <p className="text-[10px] text-center text-slate-400">
-                      El administrador creará este pedido en Dropi contra entrega con estos mismos datos exactos.
+                      El equipo logístico despachará este pedido contra entrega con estos mismos datos exactos.
                     </p>
                   </form>
                 </div>
@@ -925,11 +925,11 @@ export default function SellerPortalPage() {
                               : 'bg-slate-100 text-slate-700'
                           }`}
                         >
-                          {ord.status.replace(/_/g, ' ')}
+                          {ord.status === 'pedido_en_dropi' ? 'En Bodega Central' : ord.status.replace(/_/g, ' ')}
                         </span>
                         {ord.dropi_order_id && (
                           <span className="text-[10px] font-mono text-slate-500 bg-slate-50 px-2 py-0.5 rounded border">
-                            Dropi #{ord.dropi_order_id}
+                            Guía #{ord.dropi_order_id}
                           </span>
                         )}
                       </div>
@@ -954,7 +954,7 @@ export default function SellerPortalPage() {
                         <span className="text-[10px] text-slate-400 font-bold uppercase block">Venta Cobrada</span>
                         <span className="font-black text-slate-900">{formatCOP(ord.sale_price_cop)}</span>
                         <p className="text-[10px] text-indigo-600 font-medium">
-                          Com. Dropi: {formatCOP(ord.dropi_commission_cop)}
+                          Manejo y Recaudo: {formatCOP(ord.dropi_commission_cop)}
                         </p>
                       </div>
 

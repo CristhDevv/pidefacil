@@ -619,7 +619,7 @@ export function UsersManagementTab() {
                     <Briefcase className="w-4 h-4 text-emerald-600 mb-1" />
                     <span className="text-xs font-black block">Vendedor</span>
                     <span className="text-[10px] text-slate-500 leading-tight block mt-0.5">
-                      Cotizador Dropi & Pedidos propios
+                      Cotizador de Fletes & Despachos
                     </span>
                   </button>
 

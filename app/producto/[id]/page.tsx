@@ -40,6 +40,7 @@ export default function ProductDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariation, setSelectedVariation] = useState<string>('');
+  const [selectedVariationId, setSelectedVariationId] = useState<number | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<'2x' | '1x'>('2x'); // 2x Combo es el MÁS ELEGIDO por defecto
 
   // Control modal checkout COD
@@ -60,6 +61,7 @@ export default function ProductDetailPage() {
             const firstAvailable = json.data.variations.find((v: any) => v.stock === undefined || v.stock > 0);
             if (firstAvailable) {
               setSelectedVariation(getVariationLabel(firstAvailable, 0));
+              setSelectedVariationId(firstAvailable.id || null);
             }
           }
         }
@@ -107,16 +109,26 @@ export default function ProductDetailPage() {
 
   const variations = product.variations || [];
   const packInfo = detectPackOfferInfo(product.name);
-  const duo = calculateDuoPrice(product.sell_price_cop, product.cost_cop);
-  const duoPrice = duo.duoPriceCop;
-  const duoSavings = duo.savingsCop;
-  const currentPrice = selectedOffer === '2x' ? duoPrice : product.sell_price_cop;
+
+  // Encontrar la variante activa seleccionada para pricing dinámico
+  const activeVariation =
+    variations.find((v: any) => (selectedVariationId && v.id === selectedVariationId) || v.label === selectedVariation) ||
+    variations[0];
+
+  const activeSellPrice = activeVariation?.sell_price_cop || product.sell_price_cop;
+  const activeCost = activeVariation?.cost_cop || product.cost_cop;
+  const activeDuoPrice = activeVariation?.duo_price_cop || product.duo_price_cop;
+  const activeDuoSavings = activeVariation?.duo_savings_cop || product.duo_savings_cop;
+  const currentPrice = selectedOffer === '2x' ? activeDuoPrice : activeSellPrice;
+  const activeStock = activeVariation?.stock !== undefined ? activeVariation.stock : product.stock_real;
 
   // Ancla visual de precio anterior tachado
   const anchorPrice =
-    product.suggested_price_cop && product.suggested_price_cop > product.sell_price_cop
+    activeVariation?.suggested_price && Number(activeVariation.suggested_price) > activeSellPrice
+      ? Number(activeVariation.suggested_price)
+      : product.suggested_price_cop && product.suggested_price_cop > activeSellPrice
       ? product.suggested_price_cop
-      : Math.round((product.sell_price_cop * 1.35) / 1000) * 1000 + 900;
+      : Math.round((activeSellPrice * 1.35) / 1000) * 1000 + 900;
 
   const handleNextImage = () => {
     setActiveImageIndex((prev) => (prev + 1) % images.length);
@@ -212,7 +224,7 @@ export default function ProductDetailPage() {
               {formatCOP(anchorPrice)}
             </span>
             <span className="price-tag font-price text-2xl sm:text-3xl font-extrabold text-[#16A34A] tracking-tight">
-              {formatCOP(product.sell_price_cop)}
+              {formatCOP(activeSellPrice)}
             </span>
             <span className="text-xs font-bold text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-md font-sans">
               Envío Gratis
@@ -233,7 +245,7 @@ export default function ProductDetailPage() {
                     Panel de Rentabilidad Vendedor COD
                   </h3>
                   <p className="text-[11px] text-blue-200">
-                    Costo directo de proveedor Dropi Colombia
+                    Costo directo de bodega nacional aliada
                   </p>
                 </div>
               </div>
@@ -244,21 +256,21 @@ export default function ProductDetailPage() {
 
             <div className="grid grid-cols-3 gap-2.5 bg-black/25 p-3 rounded-2xl border border-white/10 text-center">
               <div>
-                <p className="text-[10px] text-blue-200 font-medium">Costo Dropi</p>
+                <p className="text-[10px] text-blue-200 font-medium">Costo Mayorista</p>
                 <p className="text-sm sm:text-base font-extrabold font-price text-white">
-                  {formatCOP(product.cost_cop)}
+                  {formatCOP(activeCost)}
                 </p>
               </div>
               <div>
                 <p className="text-[10px] text-blue-200 font-medium">PVP Sugerido</p>
                 <p className="text-sm sm:text-base font-bold font-price text-slate-300">
-                  {formatCOP(product.sell_price_cop)}
+                  {formatCOP(activeSellPrice)}
                 </p>
               </div>
               <div>
                 <p className="text-[10px] text-emerald-300 font-medium">Tu Ganancia</p>
                 <p className="text-sm sm:text-base font-extrabold font-price text-emerald-400">
-                  +{formatCOP(Math.max(0, product.sell_price_cop - product.cost_cop))}
+                  +{formatCOP(Math.max(0, activeSellPrice - activeCost))}
                 </p>
               </div>
             </div>
@@ -266,11 +278,11 @@ export default function ProductDetailPage() {
             <div className="flex items-center justify-between text-xs text-blue-200/90 pt-1">
               <div className="flex items-center gap-1.5">
                 <span>📦 Stock en Bodega:</span>
-                <span className="font-extrabold text-white">{product.stock_real} unidades</span>
+                <span className="font-extrabold text-white">{activeStock} unidades</span>
               </div>
               {product.supplier_name && (
                 <div className="text-[11px] truncate max-w-[150px]">
-                  Proveedor: <span className="text-white font-medium">{product.supplier_name}</span>
+                  Proveedor: <span className="text-white font-medium">{product.supplier_name || 'Bodega Nacional'}</span>
                 </div>
               )}
             </div>
@@ -338,10 +350,10 @@ export default function ProductDetailPage() {
 
               <div className="pl-6 pt-1 flex items-baseline justify-between border-t border-slate-100">
                 <span className="text-[10px] font-bold text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded font-sans">
-                  Ahorras {formatCOP(duoSavings)}
+                  Ahorras {formatCOP(activeDuoSavings)}
                 </span>
                 <span className="price-tag font-price text-xl sm:text-2xl font-extrabold text-[#16A34A]">
-                  {formatCOP(duoPrice)}
+                  {formatCOP(activeDuoPrice)}
                 </span>
               </div>
             </div>
@@ -381,7 +393,7 @@ export default function ProductDetailPage() {
               <div className="pl-6 pt-1 flex items-baseline justify-between border-t border-slate-100">
                 <span className="text-[10px] text-slate-400 font-medium font-sans">Precio regular</span>
                 <span className="price-tag font-price text-xl sm:text-2xl font-extrabold text-slate-800">
-                  {formatCOP(product.sell_price_cop)}
+                  {formatCOP(activeSellPrice)}
                 </span>
               </div>
             </div>
@@ -402,16 +414,28 @@ export default function ProductDetailPage() {
                   const isSelected = selectedVariation === label;
                   return (
                     <button
-                      key={index}
+                      key={v.id || index}
                       type="button"
-                      onClick={() => setSelectedVariation(label)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition font-heading ${
+                      onClick={() => {
+                        setSelectedVariation(label);
+                        setSelectedVariationId(v.id || null);
+                      }}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition font-heading flex items-center gap-1.5 ${
                         isSelected
                           ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
                       }`}
                     >
-                      {label}
+                      <span>{label}</span>
+                      {v.has_custom_price && (
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded font-black font-price ${
+                            isSelected ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
+                          {formatCOP(v.sell_price_cop)}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -475,6 +499,7 @@ export default function ProductDetailPage() {
           product={product}
           quantityType={selectedOffer}
           selectedVariation={selectedVariation}
+          selectedVariationId={selectedVariationId || activeVariation?.id}
           totalAmount={currentPrice}
           onClose={() => setIsCheckoutOpen(false)}
           onSuccess={(orderData) => {

@@ -3,8 +3,11 @@
  * PideFácil - Normalizador Universal de Variaciones de Producto
  * ==============================================================================
  * Extrae y formatea nombres legibles (Color, Talla, Presentación) desde
- * las estructuras de atributos de Dropi API para todo el sistema.
+ * las estructuras de atributos de Dropi API para todo el sistema,
+ * y calcula dinámicamente precios, costos y márgenes individuales por variante.
  */
+
+import { calculatePricing, calculateDuoPrice } from '@/config/pricing';
 
 export interface NormalizedVariation {
   id: number;
@@ -14,6 +17,11 @@ export interface NormalizedVariation {
   name: string;
   stock: number;
   sale_price: number | null;
+  cost_cop: number;
+  sell_price_cop: number;
+  duo_price_cop: number;
+  duo_savings_cop: number;
+  has_custom_price: boolean;
   attribute_values?: any[];
   [key: string]: any;
 }
@@ -81,16 +89,21 @@ export function getVariationLabel(v: any, index = 0): string {
 }
 
 /**
- * Normaliza una lista completa de variaciones crudas de Dropi
+ * Normaliza una lista completa de variaciones crudas de Dropi,
+ * calculando para CADA VARIANTE su propio costo Dropi, PVP sugerido y precio Combo 2x.
  */
-export function normalizeVariations(rawVariations: any[] | null | undefined): NormalizedVariation[] {
+export function normalizeVariations(
+  rawVariations: any[] | null | undefined,
+  parentCostCop: number = 0,
+  parentSellPriceCop: number = 0
+): NormalizedVariation[] {
   if (!Array.isArray(rawVariations) || rawVariations.length === 0) {
     return [];
   }
 
   return rawVariations.map((v: any, index: number) => {
     const label = getVariationLabel(v, index);
-    
+
     // Determinar stock real de la variación
     let stock = 0;
     if (typeof v.stock === 'number') {
@@ -101,6 +114,30 @@ export function normalizeVariations(rawVariations: any[] | null | undefined): No
       stock = v.variation_stock;
     }
 
+    // Costo Dropi específico de esta variante
+    const rawCost = Number(v.sale_price);
+    const hasCustomSalePrice = !isNaN(rawCost) && rawCost > 0;
+    const cost_cop = hasCustomSalePrice ? Math.round(rawCost) : parentCostCop;
+
+    // Calcular precio de venta al público (PVP) y Combo 2x para esta variante
+    let sell_price_cop = parentSellPriceCop;
+    let duo_price_cop = 0;
+    let duo_savings_cop = 0;
+
+    if (cost_cop > 0) {
+      const pricing = calculatePricing(cost_cop);
+      sell_price_cop = pricing.sell_price_cop;
+      const duo = calculateDuoPrice(pricing.sell_price_cop, cost_cop);
+      duo_price_cop = duo.duoPriceCop;
+      duo_savings_cop = duo.savingsCop;
+    } else if (parentSellPriceCop > 0) {
+      const duo = calculateDuoPrice(parentSellPriceCop, parentCostCop);
+      duo_price_cop = duo.duoPriceCop;
+      duo_savings_cop = duo.savingsCop;
+    }
+
+    const has_custom_price = hasCustomSalePrice && parentSellPriceCop > 0 && sell_price_cop !== parentSellPriceCop;
+
     return {
       ...v,
       id: Number(v.id || index + 1),
@@ -109,7 +146,39 @@ export function normalizeVariations(rawVariations: any[] | null | undefined): No
       title: label,
       name: label,
       stock,
-      sale_price: v.sale_price ? Number(v.sale_price) : null,
+      sale_price: hasCustomSalePrice ? rawCost : null,
+      cost_cop,
+      sell_price_cop,
+      duo_price_cop,
+      duo_savings_cop,
+      has_custom_price,
     };
   });
+}
+
+/**
+ * Analiza si un conjunto de variaciones tiene variación de precios
+ */
+export function getVariationsPriceStats(variations: NormalizedVariation[]) {
+  if (!variations || variations.length <= 1) {
+    return {
+      has_price_variance: false,
+      min_price: variations?.[0]?.sell_price_cop || 0,
+      max_price: variations?.[0]?.sell_price_cop || 0,
+    };
+  }
+
+  const prices = variations.map((v) => v.sell_price_cop).filter((p) => p > 0);
+  if (prices.length === 0) {
+    return { has_price_variance: false, min_price: 0, max_price: 0 };
+  }
+
+  const min_price = Math.min(...prices);
+  const max_price = Math.max(...prices);
+
+  return {
+    has_price_variance: min_price !== max_price,
+    min_price,
+    max_price,
+  };
 }

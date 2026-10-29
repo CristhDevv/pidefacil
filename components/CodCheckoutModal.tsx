@@ -21,6 +21,7 @@ interface CodCheckoutModalProps {
   product: ProductSummary;
   quantityType: '1x' | '2x';
   selectedVariation?: string;
+  selectedVariationId?: number | null;
   totalAmount: number;
   onClose: () => void;
   onSuccess: (orderData: any) => void;
@@ -30,6 +31,7 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
   product,
   quantityType,
   selectedVariation,
+  selectedVariationId,
   totalAmount,
   onClose,
   onSuccess,
@@ -128,6 +130,7 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
           product_id: product.id_dropi,
           quantity_type: quantityType,
           selected_variation: selectedVariation,
+          selected_variation_id: selectedVariationId,
           notes: notes.trim(),
         }),
       });

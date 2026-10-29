@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getActiveProducts } from '@/lib/db';
 import { calculatePricing, calculateDuoPrice } from '@/config/pricing';
+import { normalizeVariations, getVariationsPriceStats } from '@/lib/variations';
 
 // Edge Caching habilitado con Cache-Control s-maxage=60
 
@@ -20,9 +21,31 @@ export async function GET(request: NextRequest) {
       offset,
     });
 
-    // Enriquecer con cálculo de Combo x2 (Más Elegido: suma costo del producto + redondeo 9.900)
+    // Enriquecer con cálculo de Combo x2 y variaciones de precio
     const enriched = products.map((p) => {
       const duo = calculateDuoPrice(p.sell_price_cop, p.cost_cop);
+      let has_price_variance = false;
+      let min_price_cop = p.sell_price_cop;
+      let max_price_cop = p.sell_price_cop;
+
+      if (p.stock_por_variacion) {
+        try {
+          const rawVars =
+            typeof p.stock_por_variacion === 'string'
+              ? JSON.parse(p.stock_por_variacion)
+              : p.stock_por_variacion;
+          if (Array.isArray(rawVars) && rawVars.length > 1) {
+            const normalized = normalizeVariations(rawVars, p.cost_cop, p.sell_price_cop);
+            const stats = getVariationsPriceStats(normalized);
+            has_price_variance = stats.has_price_variance;
+            if (stats.min_price > 0) min_price_cop = stats.min_price;
+            if (stats.max_price > 0) max_price_cop = stats.max_price;
+          }
+        } catch {
+          // ignore parsing error
+        }
+      }
+
       return {
         id_dropi: p.id_dropi,
         sku: p.sku,
@@ -31,6 +54,9 @@ export async function GET(request: NextRequest) {
         cost_cop: p.cost_cop,
         suggested_price_cop: p.suggested_price_cop,
         sell_price_cop: p.sell_price_cop,
+        has_price_variance,
+        min_price_cop,
+        max_price_cop,
         duo_price_cop: duo.duoPriceCop,
         duo_savings_cop: duo.savingsCop,
         stock_real: p.stock_real,
@@ -38,7 +64,11 @@ export async function GET(request: NextRequest) {
         image_url: p.image_url,
         crop_top_pct: p.crop_top_pct || 0,
         crop_bottom_pct: p.crop_bottom_pct || 0,
-        categories: p.categories ? JSON.parse(p.categories) : [],
+        categories: p.categories
+          ? typeof p.categories === 'string'
+            ? JSON.parse(p.categories)
+            : p.categories
+          : [],
       };
     });
 

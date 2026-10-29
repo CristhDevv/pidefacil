@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createCodOrder, getCodOrders, getProductById } from '@/lib/db';
-import { calculateDuoPrice } from '@/config/pricing';
+import { calculatePricing, calculateDuoPrice } from '@/config/pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       product_id,
       quantity_type,
       selected_variation,
+      selected_variation_id,
       notes,
     } = body;
 
@@ -107,10 +108,44 @@ export async function POST(request: NextRequest) {
     }
 
     const qtyMode: '1x' | '2x' = quantity_type === '2x' ? '2x' : '1x';
-    let totalCop = product.sell_price_cop;
+    let unitPrice = product.sell_price_cop;
+    let costCop = product.cost_cop;
+    let matchedVariation: any = null;
 
+    // Comprobar si eligió una variación específica con precio propio
+    if (product.stock_por_variacion) {
+      try {
+        const rawVariations = JSON.parse(product.stock_por_variacion);
+        if (Array.isArray(rawVariations) && rawVariations.length > 0) {
+          if (selected_variation_id) {
+            matchedVariation = rawVariations.find((v: any) => v.id === Number(selected_variation_id));
+          }
+          if (!matchedVariation && selected_variation) {
+            matchedVariation = rawVariations.find(
+              (v: any) =>
+                v.sku === selected_variation ||
+                v.label === selected_variation ||
+                (v.name && v.name === selected_variation)
+            );
+          }
+
+          if (matchedVariation && matchedVariation.sale_price) {
+            const varSalePrice = Number(matchedVariation.sale_price);
+            if (!isNaN(varSalePrice) && varSalePrice > 0) {
+              costCop = Math.round(varSalePrice);
+              const pricing = calculatePricing(costCop);
+              unitPrice = pricing.sell_price_cop;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error parseando stock_por_variacion en orden:', err);
+      }
+    }
+
+    let totalCop = unitPrice;
     if (qtyMode === '2x') {
-      const duo = calculateDuoPrice(product.sell_price_cop, product.cost_cop);
+      const duo = calculateDuoPrice(unitPrice, costCop);
       totalCop = duo.duoPriceCop;
     }
 
@@ -124,11 +159,13 @@ export async function POST(request: NextRequest) {
         name: product.name,
         image_url: product.image_url,
         quantity: qtyMode === '2x' ? 2 : 1,
-        unit_price: product.sell_price_cop,
+        unit_price: unitPrice,
         total_price: totalCop,
-        variation: selected_variation || null,
+        variation: selected_variation || matchedVariation?.label || null,
+        variation_id: matchedVariation?.id || selected_variation_id || null,
+        variation_sku: matchedVariation?.sku || null,
         supplier_id: product.supplier_id,
-        supplier_name: product.supplier_name,
+        supplier_name: product.supplier_name || 'Bodega Nacional',
       },
     ]);
 
