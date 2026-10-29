@@ -54,6 +54,7 @@ interface ProductSummary {
   height_cm?: number | null;
   origin_city_id?: number | null;
   origin_city_name?: string | null;
+  has_real_measures?: boolean;
 }
 
 export default function SellerPortalPage() {
@@ -499,6 +500,15 @@ export default function SellerPortalPage() {
                                       🛡️ Verificado
                                     </span>
                                   )}
+                                  {prod.has_real_measures ? (
+                                    <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.2 rounded border border-emerald-300">
+                                      ⚖️ Medidas OK
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.2 rounded border border-amber-300">
+                                      ⚠️ Sin medidas para cotizar
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="text-[10px] text-slate-400">
                                   ID: #{prod.id_dropi} • {prod.supplier_name || 'Bodega Nacional'}
@@ -561,20 +571,37 @@ export default function SellerPortalPage() {
                   </div>
                 )}
 
-                {/* Advertencia si no tiene peso/dimensiones */}
-                {selectedProduct &&
-                  !selectedProduct.weight_kg &&
-                  (!selectedProduct.length_cm || !selectedProduct.width_cm || !selectedProduct.height_cm) && (
-                    <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-2xl text-xs flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="block font-bold">Sin datos de peso o dimensiones</strong>
-                        <p className="text-[11px] text-amber-800 mt-0.5">
-                          Este producto no tiene configuradas medidas en el catálogo. Pide al administrador que registre el peso real en el panel para cotizar flete en vivo.
-                        </p>
-                      </div>
+                {/* Advertencia si no tiene peso/dimensiones reales */}
+                {selectedProduct && (!selectedProduct.weight_kg || !selectedProduct.length_cm || !selectedProduct.width_cm || !selectedProduct.height_cm || Number(selectedProduct.weight_kg) <= 0 || Number(selectedProduct.length_cm) <= 0 || Number(selectedProduct.width_cm) <= 0 || Number(selectedProduct.height_cm) <= 0) && (
+                  <div className="bg-amber-50 border-2 border-amber-300 text-amber-900 p-3.5 rounded-2xl text-xs flex items-start gap-2.5 shadow-xs">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block font-bold text-amber-950 text-xs sm:text-sm">
+                        Sin datos de peso o dimensiones registrados en el catálogo
+                      </strong>
+                      <p className="text-[11px] text-amber-900/90 mt-1 leading-relaxed">
+                        Este producto no cuenta con medidas logísticas reales verificadas (peso, largo, ancho y alto).
+                        Para evitar penalizaciones o cobros imprevistos, la cotización en vivo con transportadoras se encuentra 
+                        <strong> bloqueada</strong> hasta que el administrador registre las medidas reales del proveedor.
+                      </p>
                     </div>
-                  )}
+                  </div>
+                )}
+
+                {/* Confirmación si tiene medidas reales */}
+                {selectedProduct && Number(selectedProduct.weight_kg) > 0 && Number(selectedProduct.length_cm) > 0 && Number(selectedProduct.width_cm) > 0 && Number(selectedProduct.height_cm) > 0 && (
+                  <div className="bg-emerald-50 border border-emerald-300 text-emerald-950 p-3 rounded-2xl text-xs flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>
+                        <strong>Medidas reales registradas:</strong> {selectedProduct.weight_kg} kg • {selectedProduct.length_cm}x{selectedProduct.width_cm}x{selectedProduct.height_cm} cm
+                      </span>
+                    </div>
+                    <span className="text-[10px] bg-emerald-600 text-white font-extrabold px-2 py-0.5 rounded-md">
+                      Cotizable en vivo
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Paso 2: Destino y Parámetros Comerciales */}
@@ -656,24 +683,45 @@ export default function SellerPortalPage() {
                 </div>
 
                 {/* Botón de Cotización en Vivo */}
-                <button
-                  type="button"
-                  onClick={handleQuote}
-                  disabled={!selectedProduct || isQuoting || seller?.status !== 'approved'}
-                  className="w-full py-3 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 mt-2"
-                >
-                  {isQuoting ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
-                      <span>Cotizando Flete en Vivo con Transportadora...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Truck className="w-4 h-4 text-emerald-400" />
-                      <span>COTIZAR FLETE EN VIVO (ENVÍA / INTER RAPIDÍSIMO / SERVIENTREGA)</span>
-                    </>
-                  )}
-                </button>
+                {(() => {
+                  const hasRealMeasures = Boolean(
+                    selectedProduct &&
+                      Number(selectedProduct.weight_kg) > 0 &&
+                      Number(selectedProduct.length_cm) > 0 &&
+                      Number(selectedProduct.width_cm) > 0 &&
+                      Number(selectedProduct.height_cm) > 0
+                  );
+
+                  return (
+                    <button
+                      type="button"
+                      onClick={handleQuote}
+                      disabled={!selectedProduct || !hasRealMeasures || isQuoting || seller?.status !== 'approved'}
+                      className={`w-full py-3.5 text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-2 mt-2 ${
+                        !selectedProduct || !hasRealMeasures || seller?.status !== 'approved'
+                          ? 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'
+                          : 'bg-slate-900 hover:bg-slate-800 text-white active:scale-[0.99]'
+                      }`}
+                    >
+                      {isQuoting ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                          <span>Cotizando Flete en Vivo con Transportadora...</span>
+                        </>
+                      ) : selectedProduct && !hasRealMeasures ? (
+                        <>
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                          <span>COTIZACIÓN BLOQUEADA — PRODUCTO SIN MEDIDAS REALES</span>
+                        </>
+                      ) : (
+                        <>
+                          <Truck className="w-4 h-4 text-emerald-400" />
+                          <span>COTIZAR FLETE EN VIVO (ENVÍA / INTER RAPIDÍSIMO / COORDINADORA / TCC)</span>
+                        </>
+                      )}
+                    </button>
+                  );
+                })()}
 
                 {quoteError && (
                   <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-2xl text-xs font-bold flex items-center gap-2">

@@ -114,6 +114,26 @@ export function runGeographyAndShippingTests() {
   // Real = 1.5 * 2 = 3 kg. Volumétrico = (20 * 20 * 20 * 2) / 6000 = 2.66 kg -> Cobra 3 kg
   suite.assertEqual(multiQty, 3, 'Multiplica correctamente el peso para cantidad múltiple (x2)');
 
+  // Caso 4: Caso Set de Ollas Nia x6 (2 kg real vs 3.33 kg volumétrico)
+  const ollasWeight = calculateChargeableWeight({
+    weight_kg: 2.0,
+    length_cm: 50,
+    width_cm: 20,
+    height_cm: 20,
+    quantity: 1,
+  });
+  // Volumétrico = (50 * 20 * 20) / 6000 = 3.333 kg. Peso real = 2 kg -> Cobra 3.333 kg (volumétrico predomina)
+  suite.assert(Math.abs(ollasWeight - 3.3333) < 0.01, 'Set de Ollas calcula peso volumétrico 3.33 kg');
+
+  // Caso 5: Validación estricta sin medidas (prohibido inventar peso de 1kg)
+  const noMeasuresWeight = calculateChargeableWeight({
+    weight_kg: null,
+    length_cm: null,
+    width_cm: null,
+    height_cm: null,
+  });
+  suite.assertEqual(noMeasuresWeight, 0, 'Sin medidas registradas el peso cobrable es 0 (no inventa 1 kg)');
+
   // 4. Fórmulas Financieras de Liquidación COD
   console.log('\n📌 Bloque 4: Fórmulas Financieras de Flete y Margen Vendedor');
 

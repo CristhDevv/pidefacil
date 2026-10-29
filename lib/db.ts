@@ -218,7 +218,7 @@ function formatProductFromSupabase(row: any): DbProduct {
 
 // Columnas ligeras para cards de producto (evita descargar 100KB+ de HTML y JSON crudo por producto)
 const CARD_COLUMNS =
-  'id_dropi, name, sku, type, cost_cop, suggested_price_cop, sell_price_cop, stock_real, supplier_name, supplier_badge, image_url, categories, display_priority, crop_top_pct, crop_bottom_pct';
+  'id_dropi, name, sku, type, cost_cop, suggested_price_cop, sell_price_cop, stock_real, supplier_name, supplier_badge, image_url, categories, display_priority, crop_top_pct, crop_bottom_pct, weight_kg, length_cm, width_cm, height_cm, origin_city_id, origin_city_name';
 
 // Caché en memoria para fichas individuales de producto (PDP) con TTL de 5 minutos
 interface CachedProduct {

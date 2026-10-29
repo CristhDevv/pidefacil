@@ -46,6 +46,12 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      const w = Number(p.weight_kg);
+      const l = Number(p.length_cm);
+      const wd = Number(p.width_cm);
+      const h = Number(p.height_cm);
+      const has_real_measures = !isNaN(w) && w > 0 && !isNaN(l) && l > 0 && !isNaN(wd) && wd > 0 && !isNaN(h) && h > 0;
+
       return {
         id_dropi: p.id_dropi,
         sku: p.sku,
@@ -65,6 +71,13 @@ export async function GET(request: NextRequest) {
         image_url: p.image_url,
         crop_top_pct: p.crop_top_pct || 0,
         crop_bottom_pct: p.crop_bottom_pct || 0,
+        weight_kg: !isNaN(w) && w > 0 ? w : null,
+        length_cm: !isNaN(l) && l > 0 ? l : null,
+        width_cm: !isNaN(wd) && wd > 0 ? wd : null,
+        height_cm: !isNaN(h) && h > 0 ? h : null,
+        origin_city_id: p.origin_city_id ? Number(p.origin_city_id) : null,
+        origin_city_name: p.origin_city_name || null,
+        has_real_measures,
         categories: p.categories
           ? typeof p.categories === 'string'
             ? JSON.parse(p.categories)

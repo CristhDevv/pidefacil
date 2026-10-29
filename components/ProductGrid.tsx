@@ -25,6 +25,11 @@ export interface ProductSummary {
   supplier_name: string | null;
   supplier_badge?: string | null;
   image_url: string | null;
+  weight_kg?: number | null;
+  length_cm?: number | null;
+  width_cm?: number | null;
+  height_cm?: number | null;
+  has_real_measures?: boolean;
   crop_top_pct?: number | null;
   crop_bottom_pct?: number | null;
   categories?: any[];
@@ -152,6 +157,19 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                 {showRolePricing && prod.stock_real > 0 && (
                   <div className="absolute bottom-1.5 right-1.5 bg-black/60 backdrop-blur-xs text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-md font-sans">
                     Stock: {prod.stock_real}
+                  </div>
+                )}
+
+                {/* Badge de Medidas Reales vs Sin Medidas para Vendedores */}
+                {showRolePricing && (
+                  <div
+                    className={`absolute bottom-1.5 left-1.5 backdrop-blur-xs text-[9px] font-black px-1.5 py-0.5 rounded-md font-sans ${
+                      prod.has_real_measures
+                        ? 'bg-emerald-950/85 text-emerald-200 border border-emerald-400/40'
+                        : 'bg-amber-950/85 text-amber-200 border border-amber-400/40'
+                    }`}
+                  >
+                    {prod.has_real_measures ? '⚖️ Medidas OK' : '⚠️ Sin medidas'}
                   </div>
                 )}
               </div>

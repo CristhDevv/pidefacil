@@ -17,6 +17,7 @@ import fs from 'fs';
 import path from 'path';
 import { getAppSetting } from './db';
 import { findDropiCityById } from './dropi-geography';
+import { extractDropiTokenFromChrome } from './chrome-token-extractor';
 
 export interface QuoteInputCarrier {
   carrier_name: string;
@@ -106,6 +107,7 @@ export async function quoteLiveDropiFreight(options: {
     id_dropi: number;
     name: string;
     cost_cop: number;
+    type?: string;
     weight_kg?: number | null;
     length_cm?: number | null;
     width_cm?: number | null;
@@ -123,8 +125,20 @@ export async function quoteLiveDropiFreight(options: {
   const { product, quantity, sale_price, destination_city_id, destination_city_name } = options;
 
   // 1. Validación estricta de peso/dimensiones reales:
-  // REGLA: Si no hay datos, no cotizar en silencio con 1 kg: mostrar "sin datos de peso"
-  if (!product.weight_kg && (!product.length_cm || !product.width_cm || !product.height_cm)) {
+  // REGLA: Si no hay datos completos (peso > 0 Y largo > 0 Y ancho > 0 Y alto > 0),
+  // PROHIBIDO inventar valores por defecto (ej: 1 kg): rechazar explícitamente.
+  const w = Number(product.weight_kg);
+  const l = Number(product.length_cm);
+  const width = Number(product.width_cm);
+  const h = Number(product.height_cm);
+
+  const hasFullRealMeasurements =
+    !isNaN(w) && w > 0 &&
+    !isNaN(l) && l > 0 &&
+    !isNaN(width) && width > 0 &&
+    !isNaN(h) && h > 0;
+
+  if (!hasFullRealMeasurements) {
     return {
       ok: false,
       quoted_at: now,
@@ -143,10 +157,10 @@ export async function quoteLiveDropiFreight(options: {
   }
 
   const chargeableWeight = calculateChargeableWeight({
-    weight_kg: product.weight_kg,
-    length_cm: product.length_cm,
-    width_cm: product.width_cm,
-    height_cm: product.height_cm,
+    weight_kg: w,
+    length_cm: l,
+    width_cm: width,
+    height_cm: h,
     quantity,
   });
 
@@ -154,7 +168,12 @@ export async function quoteLiveDropiFreight(options: {
   const originCityId = product.origin_city_id || 1; // Default Bogotá si no se especifica, pero configurable por proveedor
   const originCityName = product.origin_city_name || 'BOGOTA, D.C.';
 
-  const token = await resolveDropiToken();
+  let token = await resolveDropiToken();
+  if (!token) {
+    const extracted = extractDropiTokenFromChrome();
+    if (extracted) token = extracted;
+  }
+
   if (!token) {
     return {
       ok: false,
@@ -174,16 +193,16 @@ export async function quoteLiveDropiFreight(options: {
   }
 
   // 3. Preparar payload oficial Dropi
-  const l = Math.max(1, Math.round(Number(product.length_cm || 10)));
-  const w = Math.max(1, Math.round(Number(product.width_cm || 10)));
-  const h = Math.max(1, Math.round(Number(product.height_cm || 10)));
+  const lExact = Math.max(1, Math.round(l));
+  const wExact = Math.max(1, Math.round(width));
+  const hExact = Math.max(1, Math.round(h));
   const pesoFinal = Math.max(0.1, Number(chargeableWeight.toFixed(2)));
 
   const payload = {
     peso: pesoFinal,
-    largo: l,
-    ancho: w,
-    alto: h,
+    largo: lExact,
+    ancho: wExact,
+    alto: hExact,
     ciudad_remitente: { id: originCityId, name: originCityName },
     ciudad_destino: { id: destination_city_id, name: destination_city_name },
     EnvioConCobro: true,
@@ -195,13 +214,14 @@ export async function quoteLiveDropiFreight(options: {
         name: product.name,
         price: sale_price,
         quantity,
+        type: product.type || 'SIMPLE',
       },
     ],
   };
 
   try {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-    const dropiRes = await fetch('https://api-v2.dropi.co/bff/orders/quote', {
+    let dropiRes = await fetch('https://api-v2.dropi.co/bff/orders/quote', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -211,6 +231,24 @@ export async function quoteLiveDropiFreight(options: {
       },
       body: JSON.stringify(payload),
     });
+
+    if (dropiRes.status === 401 || dropiRes.status === 403) {
+      // Auto-heal: intentar recuperar token fresco de Chrome si el actual expiró
+      const freshToken = extractDropiTokenFromChrome();
+      if (freshToken && freshToken !== token) {
+        token = freshToken;
+        dropiRes = await fetch('https://api-v2.dropi.co/bff/orders/quote', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Authorization': `Bearer ${token}`,
+            'X-Host': 'co',
+            'Origin': 'https://app.dropi.co',
+          },
+          body: JSON.stringify(payload),
+        });
+      }
+    }
 
     if (dropiRes.status === 401 || dropiRes.status === 403) {
       return {
@@ -265,8 +303,13 @@ export async function quoteLiveDropiFreight(options: {
       ).toUpperCase();
 
       const hasError = Boolean(obj.error && String(obj.error).trim() !== '');
-      const precioEnvio = Number(obj.precioEnvio ?? obj.precio_envio ?? obj.shipping_price ?? 0);
-      const seguroEnvio = Number(obj.seguroEnvio ?? obj.seguro_envio ?? obj.insurance_price ?? 0);
+      const innerObj = obj.objects && typeof obj.objects === 'object' ? obj.objects : {};
+      const precioEnvio = Number(
+        innerObj.precioEnvio ?? innerObj.precio_envio ?? obj.precioEnvio ?? obj.precio_envio ?? obj.shipping_price ?? 0
+      );
+      const seguroEnvio = Number(
+        innerObj.seguroEnvio ?? innerObj.seguro_envio ?? obj.seguroEnvio ?? obj.seguro_envio ?? obj.insurance_price ?? 0
+      );
       const fleteTotal = precioEnvio + seguroEnvio;
 
       // Comisión de plataforma Dropi: Tomada de la respuesta si está disponible;

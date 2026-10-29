@@ -637,7 +637,7 @@ export default function ProductDetailPage() {
                 Servientrega, Envía, Coordinadora) y el municipio de destino exacto al momento de generar la guía de
                 despacho.
               </p>
-              <div className="pt-1 flex items-center justify-between text-[11px]">
+              <div className="pt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px]">
                 <Link
                   href="/seller"
                   className="text-blue-700 hover:text-blue-800 font-extrabold flex items-center gap-1 hover:underline"
@@ -645,6 +645,16 @@ export default function ProductDetailPage() {
                   <span>¿Deseas cotizar flete exacto por municipio? Ir al Cotizador en Vivo</span>
                   <ExternalLink className="w-3 h-3" />
                 </Link>
+
+                {Number(product.weight_kg) > 0 && Number(product.length_cm) > 0 && Number(product.width_cm) > 0 && Number(product.height_cm) > 0 ? (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-300">
+                    ⚖️ Medidas: {product.weight_kg} kg ({product.length_cm}x{product.width_cm}x{product.height_cm} cm)
+                  </span>
+                ) : (
+                  <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded border border-amber-300">
+                    ⚠️ Sin medidas registradas para cotización en vivo
+                  </span>
+                )}
               </div>
             </div>
 

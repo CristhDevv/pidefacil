@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       product: {
         id_dropi: product.id_dropi,
         name: product.name,
+        type: product.type,
         cost_cop: product.cost_cop,
         weight_kg: product.weight_kg ?? (product as any).weight_kg,
         length_cm: product.length_cm ?? (product as any).length_cm,
