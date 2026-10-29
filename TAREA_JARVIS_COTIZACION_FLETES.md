@@ -175,5 +175,13 @@ con cabeceras de sesión de Dropi (`Origin: https://app.dropi.co`, `Referer: htt
 5. **DOMINA / VELOCES / 99MINUTOS:**
    - Reportan sin cobertura o método no habilitado en Dropi para ese trayecto específico.
 
-- **Suite de Pruebas Unitarias:** 218 de 218 pruebas unitarias superadas al 100%.
+- **Suite de Pruebas Unitarias:** 223 de 223 pruebas unitarias superadas al 100%.
 - **Compilación de Producción:** Next.js compilado exitosamente con Turbopack sin errores.
+
+---
+
+### 8. Arquitectura Permanente: Persistencia del Token en Supabase y Caché Histórico de Respaldo (28-Oct)
+- **Causa raíz de la falla en producción:** La prueba inicial del 28-oct se ejecutó de forma local en Node/tsx mediante extracción automática de la sesión de Chrome LevelDB del equipo hacia `.secrets/dropi_token.txt` y `.env.local`. Al desplegar a producción (Vercel serverless), dichas rutas locales son inexistentes y el token no estaba persistido en la base de datos central de Supabase, provocando el rechazo por token no configurado.
+- **Persistencia en Producción:** Se configuró el almacenamiento del `DROPI_TOKEN` en la tabla `app_settings` de Supabase (PostgreSQL en la nube). Ahora cualquier actualización desde el panel administrativo `/admin` (`DropiTokenCard`) impacta de forma inmediata a todos los contenedores serverless sin requerir un nuevo despliegue.
+- **Caché Histórico de Respaldo:** Se creó la tabla `freight_quotes_cache` en Supabase y SQLite con unicidad por `(origin_city_id, destination_city_id, weight_bracket)`. Cada cotización exitosa en vivo refresca la caché. Si el token está ausente, expirado (401/403) o hay caída de red con Dropi, el sistema rescata la última cotización real registrada, presentándola con etiqueta clara de "Flete estimado de respaldo" y fecha del registro, manteniendo intactas las fórmulas financieras de liquidación.
+- **Suite de Pruebas Actualizada:** 223/223 tests superados. Prueba de aceptación ejecutada con éxito tanto en modo en vivo como en modo respaldo por token ausente.
