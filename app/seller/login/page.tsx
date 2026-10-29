@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Lock, Mail, Phone, User, ShoppingBag, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Lock, Mail, Phone, User, ShoppingBag, ArrowRight, ShieldCheck, CheckCircle2, MessageCircle } from 'lucide-react';
 
 export default function SellerLoginPage() {
   const router = useRouter();
@@ -216,6 +216,19 @@ export default function SellerLoginPage() {
               Modelo oficial: El vendedor no paga flete ni producto por adelantado. La liquidación se realiza una vez el cliente pague al recibir.
             </p>
           </div>
+        </div>
+
+        {/* Botón directo de soporte / contacto con administración */}
+        <div className="mt-4 text-center">
+          <a
+            href="https://wa.me/573117284178?text=Hola%2C%20soy%20vendedor%20y%20quiero%20comunicarme%20directamente%20contigo%20para%20activar%20mi%20cuenta%20en%20PideF%C3%A1cil."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-white hover:bg-emerald-50 px-4 py-2.5 rounded-2xl border border-emerald-200 transition shadow-xs active:scale-95"
+          >
+            <MessageCircle className="w-4 h-4 text-emerald-600" />
+            <span>¿Dudas o activación de cuenta? Escríbeme al 311 728 4178</span>
+          </a>
         </div>
       </div>
     </div>

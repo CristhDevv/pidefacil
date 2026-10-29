@@ -16,6 +16,7 @@ import {
   Sparkles,
   ExternalLink,
   Download,
+  MessageCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -236,6 +237,22 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-600" />
                       </Link>
+
+                      {role === 'vendedor' && (
+                        <a
+                          href="https://wa.me/573117284178?text=Hola%2C%20soy%20vendedor%20de%20PideF%C3%A1cil%20y%20necesito%20comunicarme%20directamente%20contigo."
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center justify-between p-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 transition group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <MessageCircle className="w-4 h-4 text-emerald-600" />
+                            <span>Hablar conmigo: 311 728 4178</span>
+                          </div>
+                          <ExternalLink className="w-3.5 h-3.5 text-emerald-500" />
+                        </a>
+                      )}
 
                       {(role === 'admin' || role === 'operador') && (
                         <Link

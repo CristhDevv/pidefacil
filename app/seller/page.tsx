@@ -29,6 +29,7 @@ import {
   ChevronRight,
   Sparkles,
   Crown,
+  MessageCircle,
 } from 'lucide-react';
 
 interface SellerSession {
@@ -364,6 +365,18 @@ export default function SellerPortalPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <a
+              href="https://wa.me/573117284178?text=Hola%2C%20soy%20vendedor%20de%20PideF%C3%A1cil%20y%20necesito%20comunicarme%20directamente%20contigo."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs transition text-xs font-black flex items-center gap-1.5 active:scale-95"
+              title="Hablar directamente con el Administrador al 311 728 4178"
+            >
+              <MessageCircle className="w-4 h-4 text-white" />
+              <span className="hidden sm:inline">Hablar conmigo: 311 728 4178</span>
+              <span className="sm:hidden">311 728 4178</span>
+            </a>
+
             <button
               onClick={handleLogout}
               className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition text-xs font-bold flex items-center gap-1"
@@ -404,11 +417,20 @@ export default function SellerPortalPage() {
 
       {/* Banner si el vendedor está pendiente de aprobación */}
       {seller?.status !== 'approved' && (
-        <div className="bg-amber-500 text-amber-950 px-4 py-2.5 text-xs font-bold text-center flex items-center justify-center gap-2">
-          <AlertTriangle className="w-4 h-4" />
+        <div className="bg-amber-500 text-amber-950 px-4 py-2.5 text-xs font-bold text-center flex flex-wrap items-center justify-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>
-            Tu cuenta está en estado <strong>Pendiente de Aprobación</strong> por el administrador. Podrás cotizar una vez el administrador la apruebe.
+            Tu cuenta está en estado <strong>Pendiente de Aprobación</strong>. Comunícate directamente para activación inmediata:{' '}
           </span>
+          <a
+            href="https://wa.me/573117284178?text=Hola%2C%20soy%20vendedor%20en%20PideF%C3%A1cil%20y%20solicito%20la%20aprobaci%C3%B3n%20inmediata%20de%20mi%20cuenta."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 bg-emerald-900 text-white px-2.5 py-0.5 rounded-full font-black hover:bg-emerald-950 transition shadow-xs"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            <span>WhatsApp 311 728 4178</span>
+          </a>
         </div>
       )}
 
@@ -1102,6 +1124,30 @@ export default function SellerPortalPage() {
           </div>
         )}
       </main>
+
+      {/* Botón Flotante Permanente de Contacto Directo con el Administrador */}
+      <aside aria-label="Contacto directo con administración" className="fixed bottom-5 right-5 z-40">
+        <a
+          href="https://wa.me/573117284178?text=Hola%2C%20soy%20vendedor%20de%20PideF%C3%A1cil%20y%20necesito%20comunicarme%20directamente%20contigo."
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 text-white pl-3.5 pr-4 py-2.5 rounded-full shadow-xl shadow-emerald-900/20 border border-emerald-500/50 hover:shadow-2xl transition-all transform hover:-translate-y-0.5 active:scale-95 group font-sans"
+          title="Habla directamente conmigo por WhatsApp al 311 728 4178"
+        >
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-200 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+          </span>
+          <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <MessageCircle className="w-4 h-4 text-white" />
+          </div>
+          <div className="text-left hidden sm:block">
+            <p className="text-[10px] font-bold text-emerald-100 uppercase tracking-wider leading-none">Contacto Directo</p>
+            <p className="text-xs font-black leading-tight text-white">Habla conmigo: 311 728 4178</p>
+          </div>
+          <span className="sm:hidden text-xs font-black text-white">311 728 4178</span>
+        </a>
+      </aside>
     </div>
   );
 }

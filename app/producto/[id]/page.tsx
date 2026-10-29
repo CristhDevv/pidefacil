@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   Building2,
   Info,
+  MessageCircle,
 } from 'lucide-react';
 
 export default function ProductDetailPage() {
@@ -638,13 +639,25 @@ export default function ProductDetailPage() {
                 despacho.
               </p>
               <div className="pt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px]">
-                <Link
-                  href="/seller"
-                  className="text-blue-700 hover:text-blue-800 font-extrabold flex items-center gap-1 hover:underline"
-                >
-                  <span>¿Deseas cotizar flete exacto por municipio? Ir al Cotizador en Vivo</span>
-                  <ExternalLink className="w-3 h-3" />
-                </Link>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link
+                    href="/seller"
+                    className="text-blue-700 hover:text-blue-800 font-extrabold flex items-center gap-1 hover:underline"
+                  >
+                    <span>¿Deseas cotizar flete exacto por municipio? Ir al Cotizador en Vivo</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </Link>
+
+                  <a
+                    href={`https://wa.me/573117284178?text=${encodeURIComponent(`Hola, soy vendedor de PideFácil y tengo una consulta sobre el producto #${product.id_dropi} (${product.name}).`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-700 hover:text-emerald-800 font-extrabold flex items-center gap-1 hover:underline"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Hablar con Admin (311 728 4178)</span>
+                  </a>
+                </div>
 
                 {(Boolean(product.has_real_measures) || (Number(product.weight_kg) > 0 && Number(product.length_cm) > 0 && Number(product.width_cm) > 0 && Number(product.height_cm) > 0)) && (
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-300">
