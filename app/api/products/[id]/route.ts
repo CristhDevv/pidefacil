@@ -3,7 +3,7 @@ import { getProductById } from '@/lib/db';
 import { calculateDuoPrice } from '@/config/pricing';
 import { normalizeVariations } from '@/lib/variations';
 
-// Cache Edge habilitado (120s TTL) para fichas de producto rápidas
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   _request: NextRequest,
@@ -38,6 +38,13 @@ export async function GET(
     const maxPrice = variationPrices.length > 0 ? Math.max(...variationPrices) : p.sell_price_cop;
     const hasPriceVariance = minPrice !== maxPrice;
 
+    // Validación unificada de medidas reales para cotización
+    const w = Number(p.weight_kg);
+    const l = Number(p.length_cm);
+    const wd = Number(p.width_cm);
+    const h = Number(p.height_cm);
+    const has_real_measures = !isNaN(w) && w > 0 && !isNaN(l) && l > 0 && !isNaN(wd) && wd > 0 && !isNaN(h) && h > 0;
+
     return NextResponse.json(
       {
         success: true,
@@ -65,11 +72,18 @@ export async function GET(
           variations,
           description: p.description,
           is_active: Boolean(p.is_active),
+          weight_kg: !isNaN(w) && w > 0 ? w : null,
+          length_cm: !isNaN(l) && l > 0 ? l : null,
+          width_cm: !isNaN(wd) && wd > 0 ? wd : null,
+          height_cm: !isNaN(h) && h > 0 ? h : null,
+          origin_city_id: p.origin_city_id ? Number(p.origin_city_id) : null,
+          origin_city_name: p.origin_city_name || null,
+          has_real_measures,
         },
       },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=600',
+          'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=15',
         },
       }
     );

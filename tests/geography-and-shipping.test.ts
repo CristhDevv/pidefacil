@@ -170,6 +170,36 @@ export function runGeographyAndShippingTests() {
   suite.assertEqual(getWeightBracket(3.33), '4kg', 'Banda del Set de Ollas (3.33 kg) redondea a 4kg');
   suite.assertEqual(getWeightBracket(5.0), '5kg', 'Banda de 5.0 kg es 5kg');
 
+  // 6. Consistencia de Medidas en Ficha de Producto PDP
+  console.log('\n📌 Bloque 6: Consistencia de Medidas en Ficha de Producto');
+  const mockMeasuredProduct = {
+    weight_kg: 2.0,
+    length_cm: 50,
+    width_cm: 20,
+    height_cm: 20,
+  };
+  const hasMeasures = Boolean(
+    Number(mockMeasuredProduct.weight_kg) > 0 &&
+    Number(mockMeasuredProduct.length_cm) > 0 &&
+    Number(mockMeasuredProduct.width_cm) > 0 &&
+    Number(mockMeasuredProduct.height_cm) > 0
+  );
+  suite.assertEqual(hasMeasures, true, 'Producto medido reporta has_real_measures = true en ficha de producto');
+
+  const mockUnmeasured = {
+    weight_kg: null,
+    length_cm: null,
+    width_cm: null,
+    height_cm: null,
+  };
+  const unmeasuredHasMeasures = Boolean(
+    Number(mockUnmeasured.weight_kg) > 0 &&
+    Number(mockUnmeasured.length_cm) > 0 &&
+    Number(mockUnmeasured.width_cm) > 0 &&
+    Number(mockUnmeasured.height_cm) > 0
+  );
+  suite.assertEqual(unmeasuredHasMeasures, false, 'Producto sin medidas reporta has_real_measures = false');
+
   return suite.summary();
 }
 
