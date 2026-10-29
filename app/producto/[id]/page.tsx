@@ -646,13 +646,9 @@ export default function ProductDetailPage() {
                   <ExternalLink className="w-3 h-3" />
                 </Link>
 
-                {Boolean(product.has_real_measures) || (Number(product.weight_kg) > 0 && Number(product.length_cm) > 0 && Number(product.width_cm) > 0 && Number(product.height_cm) > 0) ? (
+                {(Boolean(product.has_real_measures) || (Number(product.weight_kg) > 0 && Number(product.length_cm) > 0 && Number(product.width_cm) > 0 && Number(product.height_cm) > 0)) && (
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-300">
                     ⚖️ Medidas: {product.weight_kg} kg ({product.length_cm}x{product.width_cm}x{product.height_cm} cm) — Cotizable en vivo
-                  </span>
-                ) : (
-                  <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded border border-amber-300">
-                    ⚠️ Sin medidas registradas para cotización en vivo
                   </span>
                 )}
               </div>

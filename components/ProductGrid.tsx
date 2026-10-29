@@ -160,16 +160,10 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                   </div>
                 )}
 
-                {/* Badge de Medidas Reales vs Sin Medidas para Vendedores */}
-                {showRolePricing && (
-                  <div
-                    className={`absolute bottom-1.5 left-1.5 backdrop-blur-xs text-[9px] font-black px-1.5 py-0.5 rounded-md font-sans ${
-                      prod.has_real_measures
-                        ? 'bg-emerald-950/85 text-emerald-200 border border-emerald-400/40'
-                        : 'bg-amber-950/85 text-amber-200 border border-amber-400/40'
-                    }`}
-                  >
-                    {prod.has_real_measures ? '⚖️ Medidas OK' : '⚠️ Sin medidas'}
+                {/* Badge de Medidas Reales solo cuando están registradas (sin advertencias negativas en catálogo) */}
+                {showRolePricing && prod.has_real_measures && (
+                  <div className="absolute bottom-1.5 left-1.5 backdrop-blur-xs text-[9px] font-black px-1.5 py-0.5 rounded-md font-sans bg-emerald-950/85 text-emerald-200 border border-emerald-400/40">
+                    ⚖️ Medidas OK
                   </div>
                 )}
               </div>

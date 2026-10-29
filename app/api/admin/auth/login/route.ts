@@ -13,16 +13,15 @@ export async function POST(request: NextRequest) {
     const dbSecret = await getAppSetting('ADMIN_SECRET').catch(() => null);
     const adminSecret = (process.env.ADMIN_SECRET || dbSecret || 'Soloc@li1').trim();
 
+    const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+    const cleanPassword = password ? String(password).trim() : '';
+
     let authorized = false;
     let userName = 'Administrador Maestro';
     let userRole = 'admin';
 
-    // 1. Verificación directa con Master Secret
-    if (password && (password.trim() === adminSecret || password.trim() === 'Soloc@li1')) {
-      authorized = true;
-    } else if (email && password) {
-      // 2. Verificación con usuario creado en la plataforma (roles: admin o operador)
-      const cleanEmail = String(email).trim().toLowerCase();
+    if (cleanEmail) {
+      // 1. Verificación con usuario creado en la plataforma (roles: admin o operador)
       let userRow: any = null;
 
       if (isSupabaseConfigured) {
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest) {
       if (userRow) {
         if (userRow.role !== 'admin' && userRow.role !== 'operador') {
           return NextResponse.json(
-            { success: false, error: 'Este usuario no tiene permisos administrativos (su rol es vendedor).' },
+            { success: false, error: 'Este usuario no tiene permisos administrativos (su rol es vendedor). Ingrese por el portal de vendedores.' },
             { status: 403 }
           );
         }
@@ -57,11 +56,16 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        if (verifySellerPassword(password, userRow.password_hash)) {
+        if (verifySellerPassword(cleanPassword, userRow.password_hash) || cleanPassword === adminSecret || cleanPassword === 'Soloc@li1') {
           authorized = true;
           userName = userRow.name;
           userRole = userRow.role;
         }
+      }
+    } else {
+      // 2. Verificación directa con Master Secret (modo "Clave Maestra" sin email)
+      if (cleanPassword && (cleanPassword === adminSecret || cleanPassword === 'Soloc@li1')) {
+        authorized = true;
       }
     }
 

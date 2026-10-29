@@ -23,48 +23,47 @@ export async function POST(request: NextRequest) {
     const cleanEmail = email ? String(email).trim().toLowerCase() : '';
     const cleanPassword = String(password).trim();
 
-    // 1. Verificación Master Admin Secret directo
-    if (cleanPassword === adminSecret || cleanPassword === 'Soloc@li1') {
-      const response = NextResponse.json({
-        success: true,
-        user: {
-          id: 1,
-          name: 'Administrador Maestro',
-          email: cleanEmail || 'admin@pidefacil.co',
-          role: 'admin',
-          status: 'approved',
-        },
-        redirect: '/admin',
-      });
-
-      // Crear tokens para admin y vendedor
-      const adminToken = createAdminToken();
-      response.cookies.set('pf_admin_token', adminToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60,
-        path: '/',
-      });
-
-      const sellerToken = createSellerToken({
-        id: 1,
-        email: cleanEmail || 'admin@pidefacil.co',
-        role: 'admin',
-      });
-      setSellerSessionCookie(response, sellerToken);
-
-      return response;
-    }
-
+    // 1. Si no hay correo, verificar acceso directo con Master Secret
     if (!cleanEmail) {
+      if (cleanPassword === adminSecret || cleanPassword === 'Soloc@li1') {
+        const response = NextResponse.json({
+          success: true,
+          user: {
+            id: 1,
+            name: 'Administrador Maestro',
+            email: 'admin@pidefacil.co',
+            role: 'admin',
+            status: 'approved',
+          },
+          redirect: '/admin',
+        });
+
+        const adminToken = createAdminToken();
+        response.cookies.set('pf_admin_token', adminToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 7 * 24 * 60 * 60,
+          path: '/',
+        });
+
+        const sellerToken = createSellerToken({
+          id: 1,
+          email: 'admin@pidefacil.co',
+          role: 'admin',
+        });
+        setSellerSessionCookie(response, sellerToken);
+
+        return response;
+      }
+
       return NextResponse.json(
         { success: false, error: 'Ingresa tu correo electrónico.' },
         { status: 400 }
       );
     }
 
-    // 2. Buscar en Supabase o SQLite
+    // 2. Buscar usuario en Supabase o SQLite por su correo electrónico
     let userRow: any = null;
 
     if (isSupabaseConfigured) {
@@ -90,15 +89,52 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 3. Si no existe en la base de datos de usuarios
     if (!userRow) {
+      // Permitir acceso de emergencia al admin maestro si usa el correo oficial de administración
+      if ((cleanPassword === adminSecret || cleanPassword === 'Soloc@li1') && cleanEmail === 'admin@pidefacil.co') {
+        const response = NextResponse.json({
+          success: true,
+          user: {
+            id: 1,
+            name: 'Administrador Maestro',
+            email: 'admin@pidefacil.co',
+            role: 'admin',
+            status: 'approved',
+          },
+          redirect: '/admin',
+        });
+
+        const adminToken = createAdminToken();
+        response.cookies.set('pf_admin_token', adminToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 7 * 24 * 60 * 60,
+          path: '/',
+        });
+
+        const sellerToken = createSellerToken({
+          id: 1,
+          email: 'admin@pidefacil.co',
+          role: 'admin',
+        });
+        setSellerSessionCookie(response, sellerToken);
+
+        return response;
+      }
+
       return NextResponse.json(
         { success: false, error: 'No encontramos ninguna cuenta registrada con este correo.' },
         { status: 401 }
       );
     }
 
-    // Validar contraseña
-    const isValid = verifySellerPassword(cleanPassword, userRow.password_hash);
+    // 4. Validar contraseña del usuario (su hash registrado o clave maestra de soporte)
+    const isValid = verifySellerPassword(cleanPassword, userRow.password_hash) ||
+      cleanPassword === adminSecret ||
+      cleanPassword === 'Soloc@li1';
+
     if (!isValid) {
       return NextResponse.json(
         { success: false, error: 'Contraseña incorrecta. Verifica e intenta nuevamente.' },
@@ -120,6 +156,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Rol estrictamente tomado de la base de datos (vendedor, operador, o admin)
     const detectedRole = userRow.role || 'vendedor';
 
     const response = NextResponse.json({
@@ -135,7 +172,7 @@ export async function POST(request: NextRequest) {
       redirect: detectedRole === 'admin' ? '/admin' : '/seller',
     });
 
-    // Guardar cookie de sesión unificada
+    // Guardar cookie de sesión unificada con su rol legítimo
     const sellerToken = createSellerToken({
       id: Number(userRow.id),
       email: userRow.email,
@@ -143,7 +180,7 @@ export async function POST(request: NextRequest) {
     });
     setSellerSessionCookie(response, sellerToken);
 
-    // Si es admin u operador, otorgar también pf_admin_token para acceso directo sin doble login
+    // Si es admin u operador, otorgar también pf_admin_token para acceso directo
     if (detectedRole === 'admin' || detectedRole === 'operador') {
       const adminToken = createAdminToken();
       response.cookies.set('pf_admin_token', adminToken, {
@@ -153,6 +190,9 @@ export async function POST(request: NextRequest) {
         maxAge: 7 * 24 * 60 * 60,
         path: '/',
       });
+    } else {
+      // Para vendedores, limpiar la cookie de admin para evitar escalada accidental
+      response.cookies.delete('pf_admin_token');
     }
 
     return response;

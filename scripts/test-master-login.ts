@@ -77,7 +77,39 @@ async function testMasterLogin() {
   }
   console.log('  ✅ Clave vieja correctamente rechazada.');
 
-  console.log('\n🎉 ¡TODAS LAS VERIFICACIONES DE LA CLAVE MAESTRA PASARON EXITOSAMENTE!');
+  // 5. Probar que el vendedor usuariodeprueba@pidefacil.com mantenga su rol "vendedor" al loguearse en /api/auth/login
+  console.log('\n📌 5. Test login vendedor usuariodeprueba@pidefacil.com (debe ser rol vendedor y redirect /seller):');
+  const reqSellerLogin = new NextRequest('http://localhost:3000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'usuariodeprueba@pidefacil.com', password: 'Soloc@li1' }),
+  });
+  const resSellerLogin = await authLoginHandler(reqSellerLogin);
+  const dataSellerLogin = await resSellerLogin.json();
+  console.log('  Status:', resSellerLogin.status);
+  console.log('  Response:', dataSellerLogin);
+  if (resSellerLogin.status !== 200 || dataSellerLogin.user?.role !== 'vendedor' || dataSellerLogin.redirect !== '/seller') {
+    throw new Error(`El vendedor no fue detectado correctamente como rol vendedor: ${JSON.stringify(dataSellerLogin)}`);
+  }
+  console.log('  ✅ Vendedor correctamente detectado como rol "vendedor" y enviado a /seller.');
+
+  // 6. Probar que el vendedor sea rechazado si intenta entrar directamente al panel /admin
+  console.log('\n📌 6. Test vendedor en /api/admin/auth/login (debe ser rechazado con 403):');
+  const reqAdminForbidden = new NextRequest('http://localhost:3000/api/admin/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'usuariodeprueba@pidefacil.com', password: 'Soloc@li1' }),
+  });
+  const resAdminForbidden = await adminLoginHandler(reqAdminForbidden);
+  const dataAdminForbidden = await resAdminForbidden.json();
+  console.log('  Status:', resAdminForbidden.status);
+  console.log('  Response:', dataAdminForbidden);
+  if (resAdminForbidden.status !== 403) {
+    throw new Error('El vendedor no fue rechazado de /api/admin/auth/login');
+  }
+  console.log('  ✅ Acceso denegado a vendedor en panel administrativo (403 correcto).');
+
+  console.log('\n🎉 ¡TODAS LAS VERIFICACIONES DE LA CLAVE MAESTRA Y ROLES PASARON EXITOSAMENTE!');
 }
 
 testMasterLogin().catch((err) => {

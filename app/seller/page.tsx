@@ -500,13 +500,9 @@ export default function SellerPortalPage() {
                                       🛡️ Verificado
                                     </span>
                                   )}
-                                  {prod.has_real_measures ? (
+                                  {prod.has_real_measures && (
                                     <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.2 rounded border border-emerald-300">
                                       ⚖️ Medidas OK
-                                    </span>
-                                  ) : (
-                                    <span className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.2 rounded border border-amber-300">
-                                      ⚠️ Sin medidas para cotizar
                                     </span>
                                   )}
                                 </div>
