@@ -15,24 +15,41 @@ import {
   Home,
   AlertCircle,
   Loader2,
+  Briefcase,
+  Package,
+  Sparkles,
 } from 'lucide-react';
+
+export interface SellerOrderItem {
+  variationId: number | null;
+  label: string;
+  quantity: number;
+  unitCost: number;
+  unitPvp: number;
+}
 
 interface CodCheckoutModalProps {
   product: ProductSummary;
-  quantityType: '1x' | '2x';
+  quantityType?: '1x' | '2x' | string;
   selectedVariation?: string;
   selectedVariationId?: number | null;
   totalAmount: number;
+  isSellerMode?: boolean;
+  sellerItems?: SellerOrderItem[];
+  estimatedFreight?: number;
   onClose: () => void;
   onSuccess: (orderData: any) => void;
 }
 
 export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
   product,
-  quantityType,
+  quantityType = '1x',
   selectedVariation,
   selectedVariationId,
   totalAmount,
+  isSellerMode = false,
+  sellerItems = [],
+  estimatedFreight = 25000,
   onClose,
   onSuccess,
 }) => {
@@ -46,9 +63,21 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
   const [confirmedCash, setConfirmedCash] = useState(true);
   const [notes, setNotes] = useState('');
 
+  // En modo vendedor, el monto a cobrar al cliente es editable
+  const [customChargeAmount, setCustomChargeAmount] = useState<number>(totalAmount);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // Cálculos para modo vendedor
+  const subtotalCost = sellerItems.reduce(
+    (acc, it) => acc + (it.unitCost || product.cost_cop) * it.quantity,
+    0
+  );
+  const totalUnits = sellerItems.reduce((acc, it) => acc + it.quantity, 0);
+  const freight = totalUnits > 0 ? estimatedFreight : 0;
+  const totalToPayWarehouse = subtotalCost + freight;
 
   // Lista dinámica de ciudades del departamento seleccionado
   const selectedDeptData = COLOMBIA_GEO.find((d) => d.name === department);
@@ -128,9 +157,11 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
           reference_point: reference.trim(),
           confirmed_cash: confirmedCash,
           product_id: product.id_dropi,
-          quantity_type: quantityType,
+          quantity_type: isSellerMode ? `${totalUnits}x` : quantityType,
           selected_variation: selectedVariation,
           selected_variation_id: selectedVariationId,
+          seller_items: isSellerMode && sellerItems.length > 0 ? sellerItems : undefined,
+          custom_total_to_charge: isSellerMode ? customChargeAmount : undefined,
           notes: notes.trim(),
         }),
       });
@@ -171,44 +202,128 @@ export const CodCheckoutModal: React.FC<CodCheckoutModalProps> = ({
 
       <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden z-10 max-h-[92vh] flex flex-col animate-slide-up">
         {/* Header Modal */}
-        <div className="bg-emerald-600 text-white px-4 py-3 flex items-center justify-between">
+        <div
+          className={`${
+            isSellerMode ? 'bg-blue-600' : 'bg-emerald-600'
+          } text-white px-4 py-3 flex items-center justify-between`}
+        >
           <div className="flex items-center gap-2">
             <span className="text-xl">🇨🇴</span>
             <div>
-              <h2 className="text-sm font-extrabold leading-none font-heading">
-                Pide Fácil — Pago Contra Entrega
+              <h2 className="text-sm font-extrabold leading-none font-heading flex items-center gap-1.5">
+                {isSellerMode && <Briefcase className="w-4 h-4" />}
+                <span>
+                  {isSellerMode
+                    ? 'Despacho de Pedido COD — Vendedor'
+                    : 'Pide Fácil — Pago Contra Entrega'}
+                </span>
               </h2>
-              <p className="text-[10px] text-emerald-100 font-medium font-sans">
-                Pagas en efectivo al transportador en tu casa
+              <p className="text-[10px] text-blue-100 font-medium font-sans">
+                {isSellerMode
+                  ? 'Configura los datos del cliente y el monto a recaudar'
+                  : 'Pagas en efectivo al transportador en tu casa'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-white/80 hover:text-white p-1 rounded-full hover:bg-emerald-700 transition"
+            className="text-white/80 hover:text-white p-1 rounded-full hover:bg-black/20 transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Resumen Compacto del Pedido */}
-        <div className="bg-emerald-50/70 border-b border-emerald-100 px-4 py-2.5 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-800 line-clamp-1 font-heading">
-              {product.name}
-            </p>
-            <p className="text-[11px] text-emerald-800 font-medium font-sans">
-              Oferta: {quantityOfferLabel}
-              {selectedVariation ? ` • Opción: ${selectedVariation}` : ''}
-            </p>
+        {/* Resumen del Pedido (Vendedor vs Cliente) */}
+        {isSellerMode && sellerItems.length > 0 ? (
+          <div className="bg-blue-50/80 border-b border-blue-200/70 p-3.5 space-y-2 font-sans">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-extrabold text-blue-950 font-heading flex items-center gap-1.5">
+                <Briefcase className="w-3.5 h-3.5 text-blue-700" />
+                <span>
+                  Despacho Mayorista ({totalUnits} {totalUnits === 1 ? 'unidad' : 'unidades'})
+                </span>
+              </span>
+              <span className="font-extrabold text-blue-900 font-price text-xs">
+                Costo Fábrica: {formatCOP(subtotalCost)}
+              </span>
+            </div>
+
+            <div className="max-h-24 overflow-y-auto space-y-1 text-[11px] pr-1">
+              {sellerItems.map((it, idx) => (
+                <div
+                  key={idx}
+                  className="flex justify-between items-center bg-white px-2 py-1 rounded-lg border border-blue-100"
+                >
+                  <span className="font-medium text-slate-800 truncate mr-2">
+                    <strong className="text-blue-700 font-bold">{it.quantity}x</strong> {it.label}
+                  </span>
+                  <span className="font-price font-bold text-slate-700 shrink-0">
+                    {formatCOP(it.unitCost * it.quantity)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-blue-200/60 text-[11px]">
+              <div>
+                <span className="text-slate-500 block">Flete promedio nacional:</span>
+                <span className="font-price font-bold text-slate-700">{formatCOP(freight)}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-slate-500 block">Total a pagar a bodega:</span>
+                <span className="font-price font-extrabold text-blue-900">
+                  {formatCOP(totalToPayWarehouse)}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-1.5 border-t border-blue-200/60 flex items-center justify-between bg-white/80 p-2 rounded-xl border border-blue-200">
+              <div>
+                <label className="text-[11px] font-extrabold text-slate-900 block font-heading">
+                  Valor a cobrar al cliente final:
+                </label>
+                <span className="text-[9px] text-slate-500">Monto total a recaudar en efectivo</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-bold text-slate-400">$</span>
+                <input
+                  type="number"
+                  value={customChargeAmount}
+                  onChange={(e) => setCustomChargeAmount(Math.max(0, Number(e.target.value)))}
+                  className="w-28 px-2 py-1 bg-white border border-blue-300 rounded-lg text-right font-price font-extrabold text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200 text-emerald-900 font-sans">
+              <span className="font-bold flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Tu ganancia estimada:</span>
+              </span>
+              <span className="font-price font-extrabold text-emerald-700">
+                +{formatCOP(Math.max(0, customChargeAmount - totalToPayWarehouse))}
+              </span>
+            </div>
           </div>
-          <div className="text-right flex-shrink-0 ml-3">
-            <span className="price-tag font-price text-base sm:text-lg font-extrabold text-emerald-800 tracking-tight">
-              {formatCOP(totalAmount)}
-            </span>
-            <p className="text-[9px] text-slate-500 font-bold font-sans">TOTAL A PAGAR</p>
+        ) : (
+          <div className="bg-emerald-50/70 border-b border-emerald-100 px-4 py-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-800 line-clamp-1 font-heading">
+                {product.name}
+              </p>
+              <p className="text-[11px] text-emerald-800 font-medium font-sans">
+                Oferta: {quantityOfferLabel}
+                {selectedVariation ? ` • Opción: ${selectedVariation}` : ''}
+              </p>
+            </div>
+            <div className="text-right flex-shrink-0 ml-3">
+              <span className="price-tag font-price text-base sm:text-lg font-extrabold text-emerald-800 tracking-tight">
+                {formatCOP(totalAmount)}
+              </span>
+              <p className="text-[9px] text-slate-500 font-bold font-sans">TOTAL A PAGAR</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Formulario Mobile-First */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-3.5">

@@ -23,6 +23,7 @@ export interface ProductSummary {
   duo_savings_cop: number;
   stock_real: number;
   supplier_name: string | null;
+  supplier_badge?: string | null;
   image_url: string | null;
   crop_top_pct?: number | null;
   crop_bottom_pct?: number | null;
@@ -119,10 +120,27 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
 
                 {/* Badge Sutil en Imagen */}
                 {showRolePricing ? (
-                  <div className="absolute top-1.5 left-1.5 bg-blue-600/95 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs font-sans">
-                    <Briefcase className="w-2.5 h-2.5" />
-                    <span>Venta COD</span>
-                  </div>
+                  prod.supplier_badge === 'PREMIUM EXCLUSIVO' ? (
+                    <div className="absolute top-1.5 left-1.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs font-sans">
+                      <Crown className="w-2.5 h-2.5" />
+                      <span>Exclusivo</span>
+                    </div>
+                  ) : prod.supplier_badge === 'PREMIUM' ? (
+                    <div className="absolute top-1.5 left-1.5 bg-purple-600 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs font-sans">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      <span>Premium</span>
+                    </div>
+                  ) : prod.supplier_badge === 'VERIFICADO' || prod.supplier_badge === 'VERIFIED' ? (
+                    <div className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs font-sans">
+                      <CheckCircle2 className="w-2.5 h-2.5" />
+                      <span>Verificado</span>
+                    </div>
+                  ) : (
+                    <div className="absolute top-1.5 left-1.5 bg-blue-600/95 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs font-sans">
+                      <Briefcase className="w-2.5 h-2.5" />
+                      <span>Venta COD</span>
+                    </div>
+                  )
                 ) : (
                   <div className="absolute top-1.5 left-1.5 bg-amber-100/95 backdrop-blur-sm text-[#B45309] text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs border border-amber-200/50 font-sans">
                     <CheckCircle2 className="w-2.5 h-2.5" />

@@ -21,6 +21,8 @@ export async function POST(request: NextRequest) {
       quantity_type,
       selected_variation,
       selected_variation_id,
+      seller_items,
+      custom_total_to_charge,
       notes,
     } = body;
 
@@ -107,67 +109,136 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const qtyMode: '1x' | '2x' = quantity_type === '2x' ? '2x' : '1x';
-    let unitPrice = product.sell_price_cop;
-    let costCop = product.cost_cop;
-    let matchedVariation: any = null;
+    let qtyMode: string = quantity_type === '2x' ? '2x' : '1x';
+    let totalCop = product.sell_price_cop;
+    let itemsToStore: any[] = [];
 
-    // Comprobar si eligió una variación específica con precio propio
-    if (product.stock_por_variacion) {
-      try {
-        const rawVariations = JSON.parse(product.stock_por_variacion);
-        if (Array.isArray(rawVariations) && rawVariations.length > 0) {
-          if (selected_variation_id) {
-            matchedVariation = rawVariations.find((v: any) => v.id === Number(selected_variation_id));
-          }
-          if (!matchedVariation && selected_variation) {
-            matchedVariation = rawVariations.find(
-              (v: any) =>
-                v.sku === selected_variation ||
-                v.label === selected_variation ||
-                (v.name && v.name === selected_variation)
-            );
-          }
+    // CASO A: Pedido mayorista multi-variante del Vendedor
+    if (Array.isArray(seller_items) && seller_items.length > 0) {
+      let rawVariations: any[] = [];
+      if (product.stock_por_variacion) {
+        try {
+          rawVariations = typeof product.stock_por_variacion === 'string'
+            ? JSON.parse(product.stock_por_variacion)
+            : product.stock_por_variacion;
+        } catch {}
+      }
 
-          if (matchedVariation && matchedVariation.sale_price) {
-            const varSalePrice = Number(matchedVariation.sale_price);
-            if (!isNaN(varSalePrice) && varSalePrice > 0) {
-              costCop = Math.round(varSalePrice);
-              const pricing = calculatePricing(costCop);
-              unitPrice = pricing.sell_price_cop;
-            }
+      let totalUnits = 0;
+      let calculatedPvpSum = 0;
+
+      itemsToStore = seller_items.map((it: any) => {
+        const qty = Math.max(1, Number(it.quantity) || 1);
+        totalUnits += qty;
+
+        let matched: any = null;
+        if (it.variationId) {
+          matched = rawVariations.find((v: any) => v.id === Number(it.variationId));
+        }
+
+        let varCost = product.cost_cop;
+        let varPvp = product.sell_price_cop;
+
+        if (matched && matched.sale_price) {
+          const rawCost = Number(matched.sale_price);
+          if (!isNaN(rawCost) && rawCost > 0) {
+            varCost = Math.round(rawCost);
+            const pricing = calculatePricing(varCost);
+            varPvp = pricing.sell_price_cop;
           }
         }
-      } catch (err) {
-        console.warn('Error parseando stock_por_variacion en orden:', err);
-      }
-    }
 
-    let totalCop = unitPrice;
-    if (qtyMode === '2x') {
-      const duo = calculateDuoPrice(unitPrice, costCop);
-      totalCop = duo.duoPriceCop;
+        const linePvp = varPvp * qty;
+        calculatedPvpSum += linePvp;
+
+        return {
+          id_dropi: product.id_dropi,
+          name: product.name,
+          image_url: product.image_url,
+          quantity: qty,
+          unit_price: varPvp,
+          cost_cop: varCost,
+          total_price: linePvp,
+          variation: it.label || matched?.label || null,
+          variation_id: it.variationId || matched?.id || null,
+          variation_sku: matched?.sku || null,
+          supplier_id: product.supplier_id,
+          supplier_name: product.supplier_name || 'Bodega Nacional',
+        };
+      });
+
+      qtyMode = `${totalUnits}x`;
+      // Si el vendedor especificó un monto a cobrar personalizado mayor que el costo, se respeta; sino el PVP sugerido
+      const customCharge = Number(custom_total_to_charge);
+      totalCop = !isNaN(customCharge) && customCharge > 0 ? customCharge : calculatedPvpSum;
+    } else {
+      // CASO B: Pedido estándar B2C (1x / 2x)
+      let unitPrice = product.sell_price_cop;
+      let costCop = product.cost_cop;
+      let matchedVariation: any = null;
+
+      // Comprobar si eligió una variación específica con precio propio
+      if (product.stock_por_variacion) {
+        try {
+          const rawVariations =
+            typeof product.stock_por_variacion === 'string'
+              ? JSON.parse(product.stock_por_variacion)
+              : product.stock_por_variacion;
+          if (Array.isArray(rawVariations) && rawVariations.length > 0) {
+            if (selected_variation_id) {
+              matchedVariation = rawVariations.find((v: any) => v.id === Number(selected_variation_id));
+            }
+            if (!matchedVariation && selected_variation) {
+              matchedVariation = rawVariations.find(
+                (v: any) =>
+                  v.sku === selected_variation ||
+                  v.label === selected_variation ||
+                  (v.name && v.name === selected_variation)
+              );
+            }
+
+            if (matchedVariation && matchedVariation.sale_price) {
+              const varSalePrice = Number(matchedVariation.sale_price);
+              if (!isNaN(varSalePrice) && varSalePrice > 0) {
+                costCop = Math.round(varSalePrice);
+                const pricing = calculatePricing(costCop);
+                unitPrice = pricing.sell_price_cop;
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Error parseando stock_por_variacion en orden:', err);
+        }
+      }
+
+      totalCop = unitPrice;
+      if (qtyMode === '2x') {
+        const duo = calculateDuoPrice(unitPrice, costCop);
+        totalCop = duo.duoPriceCop;
+      }
+
+      itemsToStore = [
+        {
+          id_dropi: product.id_dropi,
+          name: product.name,
+          image_url: product.image_url,
+          quantity: qtyMode === '2x' ? 2 : 1,
+          unit_price: unitPrice,
+          cost_cop: costCop,
+          total_price: totalCop,
+          variation: selected_variation || matchedVariation?.label || null,
+          variation_id: matchedVariation?.id || selected_variation_id || null,
+          variation_sku: matchedVariation?.sku || null,
+          supplier_id: product.supplier_id,
+          supplier_name: product.supplier_name || 'Bodega Nacional',
+        },
+      ];
     }
 
     // 3. Generar número de orden interno único PF-XXXXXX
     const randomHex = Math.random().toString(36).substring(2, 7).toUpperCase();
     const orderNumber = `PF-${randomHex}`;
-
-    const itemsJson = JSON.stringify([
-      {
-        id_dropi: product.id_dropi,
-        name: product.name,
-        image_url: product.image_url,
-        quantity: qtyMode === '2x' ? 2 : 1,
-        unit_price: unitPrice,
-        total_price: totalCop,
-        variation: selected_variation || matchedVariation?.label || null,
-        variation_id: matchedVariation?.id || selected_variation_id || null,
-        variation_sku: matchedVariation?.sku || null,
-        supplier_id: product.supplier_id,
-        supplier_name: product.supplier_name || 'Bodega Nacional',
-      },
-    ]);
+    const itemsJson = JSON.stringify(itemsToStore);
 
     // 4. Guardar pedido en base de datos
     const created = await createCodOrder({

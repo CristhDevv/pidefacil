@@ -21,6 +21,7 @@ import { runGeographyAndShippingTests } from './geography-and-shipping.test';
 import { runImageAndOcrTests } from './image-and-ocr.test';
 import { runPackDetectorAndCopyTests } from './pack-detector-and-copy.test';
 import { runPwaAndBrandingTests } from './pwa-manifest-and-branding.test';
+import { runSellerPdpAndSupplierTests } from './seller-pdp-and-supplier.test';
 import { TestStats } from './test-utils';
 
 async function runAllSuites() {
@@ -42,6 +43,7 @@ async function runAllSuites() {
     summaries.push(runImageAndOcrTests());
     summaries.push(runPackDetectorAndCopyTests());
     summaries.push(runPwaAndBrandingTests());
+    summaries.push(runSellerPdpAndSupplierTests());
   } catch (err) {
     console.error('💥 Error inesperado durante la ejecución de los suites:', err);
     process.exit(1);

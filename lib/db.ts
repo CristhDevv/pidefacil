@@ -112,7 +112,7 @@ export interface DbCodOrder {
   address: string;
   reference_point: string;
   items: string; // JSON
-  quantity_type: '1x' | '2x';
+  quantity_type: '1x' | '2x' | string;
   total_cop: number;
   status: 'pendiente_despacho' | 'subido_a_dropi' | 'en_transito' | 'entregado' | 'novedad' | 'cancelado';
   dropi_order_id?: number | null;
@@ -218,7 +218,7 @@ function formatProductFromSupabase(row: any): DbProduct {
 
 // Columnas ligeras para cards de producto (evita descargar 100KB+ de HTML y JSON crudo por producto)
 const CARD_COLUMNS =
-  'id_dropi, name, sku, type, cost_cop, suggested_price_cop, sell_price_cop, stock_real, supplier_name, image_url, categories, display_priority, crop_top_pct, crop_bottom_pct';
+  'id_dropi, name, sku, type, cost_cop, suggested_price_cop, sell_price_cop, stock_real, supplier_name, supplier_badge, image_url, categories, display_priority, crop_top_pct, crop_bottom_pct';
 
 // Caché en memoria para fichas individuales de producto (PDP) con TTL de 5 minutos
 interface CachedProduct {

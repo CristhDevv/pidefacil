@@ -28,6 +28,7 @@ import {
   Layers,
   ChevronRight,
   Sparkles,
+  Crown,
 } from 'lucide-react';
 
 interface SellerSession {
@@ -45,6 +46,7 @@ interface ProductSummary {
   suggested_price_cop?: number | null;
   sell_price_cop: number;
   supplier_name: string | null;
+  supplier_badge?: string | null;
   image_url: string | null;
   weight_kg?: number | null;
   length_cm?: number | null;
@@ -480,7 +482,24 @@ export default function SellerPortalPage() {
                                 <div className="w-10 h-10 bg-slate-100 rounded-xl" />
                               )}
                               <div>
-                                <p className="text-xs font-bold text-slate-800 line-clamp-1">{prod.name}</p>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <p className="text-xs font-bold text-slate-800 line-clamp-1">{prod.name}</p>
+                                  {prod.supplier_badge === 'PREMIUM EXCLUSIVO' && (
+                                    <span className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.2 rounded border border-amber-300">
+                                      👑 Exclusivo
+                                    </span>
+                                  )}
+                                  {prod.supplier_badge === 'PREMIUM' && (
+                                    <span className="text-[9px] bg-purple-100 text-purple-800 font-extrabold px-1.5 py-0.2 rounded border border-purple-300">
+                                      💎 Premium
+                                    </span>
+                                  )}
+                                  {(prod.supplier_badge === 'VERIFICADO' || prod.supplier_badge === 'VERIFIED') && (
+                                    <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.2 rounded border border-emerald-300">
+                                      🛡️ Verificado
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-[10px] text-slate-400">
                                   ID: #{prod.id_dropi} • {prod.supplier_name || 'Bodega Nacional'}
                                 </p>
@@ -506,9 +525,26 @@ export default function SellerPortalPage() {
                         />
                       )}
                       <div>
-                        <span className="text-[10px] bg-white border border-slate-200 text-slate-700 font-black px-2 py-0.5 rounded-md">
-                          #{selectedProduct.id_dropi}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] bg-white border border-slate-200 text-slate-700 font-black px-2 py-0.5 rounded-md">
+                            #{selectedProduct.id_dropi}
+                          </span>
+                          {selectedProduct.supplier_badge === 'PREMIUM EXCLUSIVO' && (
+                            <span className="text-[9px] bg-amber-500 text-white font-extrabold px-1.5 py-0.2 rounded">
+                              👑 Exclusivo TOP 1%
+                            </span>
+                          )}
+                          {selectedProduct.supplier_badge === 'PREMIUM' && (
+                            <span className="text-[9px] bg-purple-600 text-white font-extrabold px-1.5 py-0.2 rounded">
+                              💎 Premium
+                            </span>
+                          )}
+                          {(selectedProduct.supplier_badge === 'VERIFICADO' || selectedProduct.supplier_badge === 'VERIFIED') && (
+                            <span className="text-[9px] bg-emerald-600 text-white font-extrabold px-1.5 py-0.2 rounded">
+                              🛡️ Verificado
+                            </span>
+                          )}
+                        </div>
                         <h4 className="text-xs font-black text-slate-900 mt-1 line-clamp-1">
                           {selectedProduct.name}
                         </h4>
