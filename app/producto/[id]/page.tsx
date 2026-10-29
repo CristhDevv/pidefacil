@@ -174,18 +174,19 @@ export default function ProductDetailPage() {
 
   const DEFAULT_AVG_FREIGHT = 25000;
 
-  // Lista de items seleccionados por el vendedor
+  // Lista de items seleccionados por el vendedor (Costo mayorista incluye ya el 5% admin de PideFácil)
   const sellerSelectedItems =
     variations.length > 0
       ? variations
           .map((v: any, idx: number) => {
             const varId = v.id || idx + 1;
             const qty = variantQuantities[varId] || 0;
+            const rawCost = Number(v.cost_cop || activeCost || 0);
             return {
               variationId: varId,
               label: getVariationLabel(v, idx),
               quantity: qty,
-              unitCost: v.cost_cop,
+              unitCost: Math.round(rawCost * 1.05),
               unitPvp: v.sell_price_cop,
               stock: v.stock,
             };
@@ -196,7 +197,7 @@ export default function ProductDetailPage() {
             variationId: null,
             label: 'Estándar',
             quantity: singleQuantity,
-            unitCost: activeCost,
+            unitCost: Math.round(activeCost * 1.05),
             unitPvp: activeSellPrice,
             stock: activeStock,
           },
@@ -210,7 +211,7 @@ export default function ProductDetailPage() {
   const totalSellerCost =
     variations.length > 0
       ? sellerSelectedItems.reduce((acc: number, it: any) => acc + it.unitCost * it.quantity, 0)
-      : activeCost * singleQuantity;
+      : Math.round(activeCost * 1.05) * singleQuantity;
 
   const totalSellerPvp =
     variations.length > 0
@@ -453,7 +454,7 @@ export default function ProductDetailPage() {
                     const varId = v.id || index + 1;
                     const label = getVariationLabel(v, index);
                     const qty = variantQuantities[varId] || 0;
-                    const cost = v.cost_cop || activeCost;
+                    const cost = Math.round(Number(v.cost_cop || activeCost || 0) * 1.05);
                     const pvp = v.sell_price_cop || activeSellPrice;
                     const lineSubtotal = qty * cost;
                     const isOutOfStock = v.stock !== undefined && v.stock <= 0;
@@ -556,8 +557,8 @@ export default function ProductDetailPage() {
                         Cantidad de unidades a pedir:
                       </span>
                       <span className="text-[11px] text-slate-500">
-                        Costo unitario:{' '}
-                        <strong className="text-blue-900 font-price">{formatCOP(activeCost)}</strong> • Stock:{' '}
+                        Costo unitario (5% admin incl.):{' '}
+                        <strong className="text-blue-900 font-price">{formatCOP(Math.round(activeCost * 1.05))}</strong> • Stock:{' '}
                         {activeStock}
                       </span>
                     </div>
@@ -681,7 +682,7 @@ export default function ProductDetailPage() {
 
               <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between text-slate-300">
-                  <span>Subtotal Costo de Fábrica ({totalSellerUnits} uds):</span>
+                  <span>Subtotal Costo Mayorista ({totalSellerUnits} uds, 5% admin incl.):</span>
                   <span className="font-price font-bold text-white text-sm">{formatCOP(totalSellerCost)}</span>
                 </div>
 

@@ -176,35 +176,43 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
 
             <div className="pt-1">
               {showRolePricing ? (
-                /* VISTA INTELIGENTE DE PRECIOS PARA VENDEDOR / ADMIN */
-                <div className="space-y-1.5">
-                  <div className="bg-blue-50/80 border border-blue-200/70 rounded-xl p-2 font-sans">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-500 font-medium">Costo Mayorista:</span>
-                      <span className="font-extrabold text-blue-900 font-price">
-                        {formatCOP(prod.cost_cop)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] mt-0.5">
-                      <span className="text-slate-500 font-medium">PVP Sugerido:</span>
-                      <span className="font-semibold text-slate-700 font-price">
-                        {prod.has_price_variance ? 'Desde ' : ''}
-                        {formatCOP(prod.min_price_cop || prod.sell_price_cop)}
-                      </span>
-                    </div>
-                    <div className="mt-1 pt-1 border-t border-blue-200/50 flex items-center justify-between text-[11px]">
-                      <span className="text-emerald-700 font-extrabold">Tu Ganancia:</span>
-                      <span className="font-extrabold text-[#16A34A] font-price text-xs">
-                        +{formatCOP(Math.max(0, prod.sell_price_cop - prod.cost_cop))}
-                      </span>
-                    </div>
-                  </div>
+                /* VISTA INTELIGENTE DE PRECIOS PARA VENDEDOR / ADMIN (INCLUYE 5% ADMIN) */
+                (() => {
+                  const sellerCost = Math.round((prod.cost_cop || 0) * 1.05);
+                  const suggestedPvp = prod.min_price_cop || prod.sell_price_cop;
+                  const estimatedGain = Math.max(0, suggestedPvp - sellerCost);
 
-                  <div className="btn-cta font-heading w-full bg-blue-600 group-hover:bg-blue-700 text-white font-extrabold text-[11px] sm:text-xs py-1.5 px-2 rounded-xl text-center flex items-center justify-center gap-1 transition-all shadow-xs">
-                    <Briefcase className="w-3 h-3" />
-                    <span>Cotizar / Despachar</span>
-                  </div>
-                </div>
+                  return (
+                    <div className="space-y-1.5">
+                      <div className="bg-blue-50/80 border border-blue-200/70 rounded-xl p-2 font-sans">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 font-medium">Costo Mayorista:</span>
+                          <span className="font-extrabold text-blue-900 font-price">
+                            {formatCOP(sellerCost)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] mt-0.5">
+                          <span className="text-slate-500 font-medium">PVP Sugerido:</span>
+                          <span className="font-semibold text-slate-700 font-price">
+                            {prod.has_price_variance ? 'Desde ' : ''}
+                            {formatCOP(suggestedPvp)}
+                          </span>
+                        </div>
+                        <div className="mt-1 pt-1 border-t border-blue-200/50 flex items-center justify-between text-[11px]">
+                          <span className="text-emerald-700 font-extrabold">Tu Ganancia:</span>
+                          <span className="font-extrabold text-[#16A34A] font-price text-xs">
+                            +{formatCOP(estimatedGain)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="btn-cta font-heading w-full bg-blue-600 group-hover:bg-blue-700 text-white font-extrabold text-[11px] sm:text-xs py-1.5 px-2 rounded-xl text-center flex items-center justify-center gap-1 transition-all shadow-xs">
+                        <Briefcase className="w-3 h-3" />
+                        <span>Cotizar / Despachar</span>
+                      </div>
+                    </div>
+                  );
+                })()
               ) : (
                 /* VISTA REGULAR PARA CLIENTE PÚBLICO */
                 <div>

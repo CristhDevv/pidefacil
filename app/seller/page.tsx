@@ -238,13 +238,15 @@ export default function SellerPortalPage() {
     ? Math.max(0, Math.round(0.05 * (customSalePrice - activeCarrier.flete_total)))
     : 0;
 
-  const dynamicAdminFee = selectedProduct
-    ? Math.round(selectedProduct.cost_cop * quantity * 0.05)
+  // Costo mayorista al vendedor con el 5% admin ya integrado:
+  const sellerProductCostUnit = selectedProduct
+    ? Math.round(selectedProduct.cost_cop * 1.05)
     : 0;
+  const sellerProductCostTotal = sellerProductCostUnit * quantity;
+  const dynamicAdminFee = Math.round((selectedProduct?.cost_cop || 0) * quantity * 0.05);
 
   const dynamicTotalCost =
-    (selectedProduct?.cost_cop || 0) * quantity +
-    dynamicAdminFee +
+    sellerProductCostTotal +
     (activeCarrier?.flete_total || 0) +
     dynamicDropiCommission;
 
@@ -281,7 +283,7 @@ export default function SellerPortalPage() {
           origin_city_name: quoteData.origin_city?.name || 'BOGOTA, D.C.',
           carrier_name: activeCarrier.carrier_name,
           sale_price_cop: customSalePrice,
-          product_cost_cop: selectedProduct.cost_cop * quantity,
+          product_cost_cop: sellerProductCostTotal,
           admin_fee_cop: dynamicAdminFee,
           flete_precio_envio: activeCarrier.precio_envio,
           flete_seguro_envio: activeCarrier.seguro_envio,
@@ -534,8 +536,8 @@ export default function SellerPortalPage() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-xs font-black text-emerald-700">{formatCOP(prod.cost_cop)}</p>
-                              <p className="text-[10px] text-slate-400">Costo base</p>
+                              <p className="text-xs font-black text-emerald-700">{formatCOP(Math.round((prod.cost_cop || 0) * 1.05))}</p>
+                              <p className="text-[10px] text-slate-400">Costo mayorista</p>
                             </div>
                           </div>
                         ))}
@@ -583,8 +585,8 @@ export default function SellerPortalPage() {
                     </div>
 
                     <div className="text-right">
-                      <p className="text-xs font-black text-slate-900">{formatCOP(selectedProduct.cost_cop)}</p>
-                      <p className="text-[10px] text-slate-400">Costo Mayorista</p>
+                      <p className="text-xs font-black text-slate-900">{formatCOP(Math.round((selectedProduct.cost_cop || 0) * 1.05))}</p>
+                      <p className="text-[10px] text-slate-400">Costo Mayorista (5% incl.)</p>
                     </div>
                   </div>
                 )}
@@ -853,13 +855,8 @@ export default function SellerPortalPage() {
                       </div>
 
                       <div className="flex justify-between items-center text-slate-500">
-                        <span>Costo Base Producto ({quantity} un):</span>
-                        <span className="font-mono">-{formatCOP((selectedProduct?.cost_cop || 0) * quantity)}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center text-slate-500">
-                        <span>Comisión Admin PideFácil (5%):</span>
-                        <span className="font-mono">-{formatCOP(dynamicAdminFee)}</span>
+                        <span>Costo Mayorista Producto ({quantity} un, 5% admin incl.):</span>
+                        <span className="font-mono">-{formatCOP(sellerProductCostTotal)}</span>
                       </div>
 
                       <div className="flex justify-between items-center text-slate-500">

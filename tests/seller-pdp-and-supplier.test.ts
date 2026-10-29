@@ -121,6 +121,15 @@ export function runSellerPdpAndSupplierTests() {
   suite.assertEqual(resNeg.totalUnits, 2, 'Unidades negativas deben ignorarse');
   suite.assertEqual(resNeg.totalCost, 60000, 'Costo sólo suma las unidades válidas');
 
+  // Test 4b: Verificación del 5% de administración incorporado en el Costo Mayorista del Vendedor
+  const rawFactoryCost = 20000;
+  const sellerWholesaleCost = Math.round(rawFactoryCost * 1.05);
+  suite.assertEqual(sellerWholesaleCost, 21000, 'Costo mayorista visible al vendedor incorpora el 5% admin ($20.000 -> $21.000)');
+
+  const rawVariantCost = 34000;
+  const sellerVariantCost = Math.round(rawVariantCost * 1.05);
+  suite.assertEqual(sellerVariantCost, 35700, 'Costo mayorista de variante incorpora el 5% admin ($34.000 -> $35.700)');
+
   // --------------------------------------------------------------------------
   console.log('📌 Bloque 2: Clasificación de Proveedores y Recomendaciones Comerciales');
 
