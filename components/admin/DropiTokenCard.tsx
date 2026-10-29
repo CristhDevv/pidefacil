@@ -106,7 +106,7 @@ export function DropiTokenCard() {
       </div>
 
       {/* Estado actual del token */}
-      <div className="p-3.5 rounded-2xl border text-xs font-medium space-y-1 bg-slate-50 border-slate-200">
+      <div className="p-3.5 rounded-2xl border text-xs font-medium space-y-2 bg-slate-50 border-slate-200">
         <div className="flex items-center gap-2">
           {tokenStatus?.status === 'valid' ? (
             <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
@@ -115,12 +115,28 @@ export function DropiTokenCard() {
           ) : (
             <Lock className="w-4 h-4 text-slate-400 flex-shrink-0" />
           )}
-          <span className="text-slate-700">
+          <span className="text-slate-800 font-bold">
             {isLoading ? 'Verificando estado con Dropi...' : tokenStatus?.message || 'Estado no disponible'}
           </span>
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px] text-slate-600 border-t border-slate-200/60 font-sans">
+          <div>
+            <span className="text-slate-400">Almacenamiento:</span>{' '}
+            <span className="font-semibold text-slate-800">{tokenStatus?.storage_location || 'Consultando...'}</span>
+          </div>
+          {tokenStatus?.hours_remaining !== undefined && tokenStatus?.hours_remaining !== null && (
+            <div>
+              <span className="text-slate-400">Vigencia estimada:</span>{' '}
+              <span className={`font-semibold ${tokenStatus.hours_remaining <= 2 ? 'text-amber-700 font-bold' : 'text-emerald-700'}`}>
+                {tokenStatus.hours_remaining > 0 ? `${tokenStatus.hours_remaining} horas restantes` : 'Expirado'}
+              </span>
+            </div>
+          )}
+        </div>
+
         {tokenStatus?.token_preview && (
-          <p className="text-[10px] font-mono text-slate-400 pl-6">
+          <p className="text-[10px] font-mono text-slate-400 pt-0.5">
             Token actual: {tokenStatus.token_preview}
           </p>
         )}

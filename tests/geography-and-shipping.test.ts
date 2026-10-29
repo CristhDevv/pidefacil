@@ -160,6 +160,16 @@ export function runGeographyAndShippingTests() {
   suite.assertEqual(gananciaVendedor, 43955, 'Ganancia neta del vendedor calculada exactamente');
   suite.assert(gananciaVendedor > 0, 'Garantiza margen positivo y transparente para el vendedor');
 
+  // 5. Bandas de Peso y Resiliencia de Caché
+  console.log('\n📌 Bloque 5: Bandas de Peso y Caché Histórico de Respaldo');
+
+  const { getWeightBracket } = require('../lib/dropi-quote');
+  suite.assertEqual(getWeightBracket(0.5), '1kg', 'Banda de 0.5 kg redondea a 1kg');
+  suite.assertEqual(getWeightBracket(1.0), '1kg', 'Banda de 1.0 kg es exactamente 1kg');
+  suite.assertEqual(getWeightBracket(1.01), '2kg', 'Banda de 1.01 kg sube a 2kg');
+  suite.assertEqual(getWeightBracket(3.33), '4kg', 'Banda del Set de Ollas (3.33 kg) redondea a 4kg');
+  suite.assertEqual(getWeightBracket(5.0), '5kg', 'Banda de 5.0 kg es 5kg');
+
   return suite.summary();
 }
 

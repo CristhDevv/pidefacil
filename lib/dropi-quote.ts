@@ -15,7 +15,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { getAppSetting } from './db';
+import { getAppSetting, saveFreightQuoteToCache, getFreightQuoteFromCache, CachedFreightRoute } from './db';
 import { findDropiCityById } from './dropi-geography';
 import { extractDropiTokenFromChrome } from './chrome-token-extractor';
 
@@ -49,6 +49,12 @@ export interface QuoteResult {
   raw_objects?: any[];
   error?: string;
   code?: 'MISSING_WEIGHT' | 'TOKEN_EXPIRED' | 'NO_COVERAGE' | 'API_ERROR';
+  is_cached?: boolean;
+  is_live?: boolean;
+  cached_at?: string | null;
+  cache_age_days?: number | null;
+  is_stale?: boolean;
+  disclaimer?: string | null;
 }
 
 /**
@@ -68,16 +74,45 @@ export function calculateChargeableWeight(params: {
   const w = Number(params.width_cm || 0);
   const h = Number(params.height_cm || 0);
 
+  if (realWeight <= 0 && (l <= 0 || w <= 0 || h <= 0)) {
+    return 0;
+  }
+
   const volumetricWeight = (l * w * h * qty) / 6000;
   return Math.max(realWeight, volumetricWeight);
 }
 
 /**
- * Resuelve el token activo de Dropi desde archivo secreto (.secrets/dropi_token.txt),
- * configuración en BD (app_settings) o variable de entorno.
+ * Determina la banda de peso en kg (redondeada hacia arriba) para indexación de caché
+ */
+export function getWeightBracket(chargeableWeightKg: number): string {
+  const rounded = Math.max(1, Math.ceil(chargeableWeightKg));
+  return `${rounded}kg`;
+}
+
+/**
+ * Resuelve el token activo de Dropi.
+ * En producción (Vercel):
+ * 1. Base de datos Supabase (app_settings) -> permite actualización instantánea desde /admin sin redeploy.
+ * 2. Variable de entorno en Vercel (DROPI_TOKEN).
+ * 3. Archivo local .secrets/dropi_token.txt (desarrollo local).
  */
 export async function resolveDropiToken(): Promise<string> {
-  // 1. Archivo secreto ignorado por Git (.secrets/dropi_token.txt)
+  // 1. Base de datos en la nube (app_settings en Supabase)
+  try {
+    const dbToken = await getAppSetting('DROPI_TOKEN');
+    if (dbToken && dbToken.trim()) {
+      return dbToken.replace(/^["']|["']$/g, '').trim();
+    }
+  } catch {}
+
+  // 2. Variable de entorno (Vercel / .env.local)
+  const envToken = process.env.DROPI_TOKEN || '';
+  if (envToken && envToken.trim()) {
+    return envToken.replace(/^["']|["']$/g, '').trim();
+  }
+
+  // 3. Archivo secreto ignorado por Git (.secrets/dropi_token.txt) para entorno local
   try {
     const secretPath = path.resolve('.secrets/dropi_token.txt');
     if (fs.existsSync(secretPath)) {
@@ -86,17 +121,117 @@ export async function resolveDropiToken(): Promise<string> {
     }
   } catch {}
 
-  // 2. Base de datos (app_settings)
-  try {
-    const dbToken = await getAppSetting('DROPI_TOKEN');
-    if (dbToken && dbToken.trim()) {
-      return dbToken.replace(/^["']|["']$/g, '').trim();
-    }
-  } catch {}
+  return '';
+}
 
-  // 3. Variable de entorno
-  const envToken = process.env.DROPI_TOKEN || '';
-  return envToken.replace(/^["']|["']$/g, '').trim();
+/**
+ * Construye un resultado de cotización a partir de la caché histórica
+ * aplicando estrictamente las fórmulas financieras de liquidación.
+ */
+function buildQuoteFromCache(options: {
+  cached: CachedFreightRoute;
+  product: { id_dropi: number; name: string; cost_cop: number };
+  quantity: number;
+  sale_price: number;
+  chargeableWeight: number;
+  originCityId: number;
+  originCityName: string;
+  destinationCityId: number;
+  destinationCityName: string;
+  now: string;
+}): QuoteResult {
+  const {
+    cached,
+    product,
+    quantity,
+    sale_price,
+    chargeableWeight,
+    originCityId,
+    originCityName,
+    destinationCityId,
+    destinationCityName,
+    now,
+  } = options;
+
+  const costProductTotal = product.cost_cop * quantity;
+  const adminFee = Math.round(costProductTotal * 0.05);
+
+  const carriers: QuoteInputCarrier[] = (cached.carriers || []).map((c: any) => {
+    const carrierName = String(c.carrier || c.carrier_name || 'TRANSPORTADORA').toUpperCase();
+    const precioEnvio = Number(c.shipping_price ?? c.precio_envio ?? 0);
+    const seguroEnvio = Number(c.insurance_price ?? c.seguro_envio ?? 0);
+    const fleteTotal = precioEnvio + seguroEnvio;
+    const dropiCommission = Math.max(0, Math.round(0.05 * (sale_price - fleteTotal)));
+    const costoTotal = costProductTotal + adminFee + fleteTotal + dropiCommission;
+    const parteEstimadaVendedor = sale_price - costoTotal;
+    const isInter = carrierName.includes('INTER');
+    const hasCoverage = Boolean(c.has_coverage ?? (fleteTotal > 0));
+
+    return {
+      carrier_name: carrierName,
+      is_inter: isInter,
+      precio_envio: precioEnvio,
+      seguro_envio: seguroEnvio,
+      flete_total: fleteTotal,
+      dropi_commission: dropiCommission,
+      admin_fee: adminFee,
+      costo_total: costoTotal,
+      parte_estimada_vendedor: parteEstimadaVendedor,
+      available: hasCoverage && fleteTotal > 0,
+      error_message: c.error || c.error_message || null,
+    };
+  });
+
+  const interCarrier = carriers.find((c) => c.is_inter && c.available);
+  const availableCarriers = carriers.filter((c) => c.available);
+
+  let recommendedCarrier: QuoteInputCarrier | null = null;
+  let interAvailable = false;
+  let interCoverageMessage: string | null = null;
+
+  if (interCarrier) {
+    recommendedCarrier = interCarrier;
+    interAvailable = true;
+  } else if (availableCarriers.length > 0) {
+    recommendedCarrier = availableCarriers[0];
+    interAvailable = false;
+    interCoverageMessage = 'Inter Rapidísimo no cubre este destino (se muestra la transportadora disponible).';
+  } else {
+    interAvailable = false;
+    interCoverageMessage = 'Ninguna transportadora con cobertura histórica para esta ruta.';
+  }
+
+  const cachedDate = new Date(cached.quoted_at);
+  const ageDays = Math.floor((Date.now() - cachedDate.getTime()) / (1000 * 60 * 60 * 24));
+  const isStale = ageDays > 30;
+  const formattedDate = !isNaN(cachedDate.getTime())
+    ? cachedDate.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+    : 'fecha previa';
+
+  const disclaimer = isStale
+    ? `⚠️ Tarifas históricas de respaldo con más de 30 días de antigüedad (${formattedDate}). El flete final se confirma cuando el administrador monta el pedido en Dropi.`
+    : `⚠️ Flete estimado de respaldo (tarifas reales del ${formattedDate}). El flete final se confirma cuando el administrador monta el pedido en Dropi.`;
+
+  return {
+    ok: availableCarriers.length > 0,
+    is_cached: true,
+    is_live: false,
+    cached_at: cached.quoted_at,
+    cache_age_days: ageDays,
+    is_stale: isStale,
+    disclaimer,
+    quoted_at: now,
+    sale_price,
+    product_cost: costProductTotal,
+    quantity,
+    chargeable_weight_kg: chargeableWeight,
+    inter_available: interAvailable,
+    inter_coverage_message: interCoverageMessage,
+    recommended_carrier: recommendedCarrier,
+    carriers,
+    origin_city: { id: originCityId, name: originCityName },
+    destination_city: { id: destinationCityId, name: destinationCityName },
+  };
 }
 
 /**
@@ -167,6 +302,8 @@ export async function quoteLiveDropiFreight(options: {
   // 2. Ciudad remitente por proveedor (NO Popayán por defecto)
   const originCityId = product.origin_city_id || 1; // Default Bogotá si no se especifica, pero configurable por proveedor
   const originCityName = product.origin_city_name || 'BOGOTA, D.C.';
+  const pesoFinal = Math.max(0.1, Number(chargeableWeight.toFixed(2)));
+  const weightBracket = getWeightBracket(pesoFinal);
 
   let token = await resolveDropiToken();
   if (!token) {
@@ -174,20 +311,37 @@ export async function quoteLiveDropiFreight(options: {
     if (extracted) token = extracted;
   }
 
+  // Si no hay token de sesión Dropi configurado, acudir inmediatamente a la caché histórica
   if (!token) {
+    const cached = await getFreightQuoteFromCache(originCityId, destination_city_id, weightBracket);
+    if (cached) {
+      return buildQuoteFromCache({
+        cached,
+        product,
+        quantity,
+        sale_price,
+        chargeableWeight: pesoFinal,
+        originCityId,
+        originCityName,
+        destinationCityId: destination_city_id,
+        destinationCityName: destination_city_name,
+        now,
+      });
+    }
+
     return {
       ok: false,
       quoted_at: now,
       sale_price,
       product_cost: product.cost_cop * quantity,
       quantity,
-      chargeable_weight_kg: chargeableWeight,
+      chargeable_weight_kg: pesoFinal,
       inter_available: false,
       recommended_carrier: null,
       carriers: [],
       origin_city: { id: originCityId, name: originCityName },
       destination_city: { id: destination_city_id, name: destination_city_name },
-      error: 'Cotización en vivo no disponible: token de Dropi no configurado. Contacte al administrador.',
+      error: 'Cotización en vivo no disponible: token de Dropi no configurado y sin histórico de flete para esta ruta. Contacte al administrador.',
       code: 'TOKEN_EXPIRED',
     };
   }
@@ -196,7 +350,6 @@ export async function quoteLiveDropiFreight(options: {
   const lExact = Math.max(1, Math.round(l));
   const wExact = Math.max(1, Math.round(width));
   const hExact = Math.max(1, Math.round(h));
-  const pesoFinal = Math.max(0.1, Number(chargeableWeight.toFixed(2)));
 
   const payload = {
     peso: pesoFinal,
@@ -251,6 +404,23 @@ export async function quoteLiveDropiFreight(options: {
     }
 
     if (dropiRes.status === 401 || dropiRes.status === 403) {
+      // Token expirado: acudir a caché histórica de respaldo
+      const cached = await getFreightQuoteFromCache(originCityId, destination_city_id, weightBracket);
+      if (cached) {
+        return buildQuoteFromCache({
+          cached,
+          product,
+          quantity,
+          sale_price,
+          chargeableWeight: pesoFinal,
+          originCityId,
+          originCityName,
+          destinationCityId: destination_city_id,
+          destinationCityName: destination_city_name,
+          now,
+        });
+      }
+
       return {
         ok: false,
         quoted_at: now,
@@ -263,7 +433,7 @@ export async function quoteLiveDropiFreight(options: {
         carriers: [],
         origin_city: { id: originCityId, name: originCityName },
         destination_city: { id: destination_city_id, name: destination_city_name },
-        error: 'Cotización en vivo no disponible: token de Dropi expirado o inválido.',
+        error: 'Cotización en vivo no disponible: token de Dropi expirado y sin historial de tarifas para esta ruta.',
         code: 'TOKEN_EXPIRED',
       };
     }
@@ -352,7 +522,6 @@ export async function quoteLiveDropiFreight(options: {
       recommendedCarrier = interCarrier;
       interAvailable = true;
     } else if (availableCarriers.length > 0) {
-      // Si Inter no cubre ese destino, mostrar la disponible y decir que Inter no cubre ese destino
       recommendedCarrier = availableCarriers[0];
       interAvailable = false;
       interCoverageMessage = 'Inter Rapidísimo no cubre este destino (se muestra la transportadora disponible).';
@@ -361,8 +530,36 @@ export async function quoteLiveDropiFreight(options: {
       interCoverageMessage = 'Ninguna transportadora cubre este trayecto.';
     }
 
+    // Guardar cotización en vivo exitosa en la caché histórica para respaldo futuro
+    if (availableCarriers.length > 0) {
+      const minFreight = Math.min(...availableCarriers.map((c) => c.flete_total));
+      const maxFreight = Math.max(...availableCarriers.map((c) => c.flete_total));
+      saveFreightQuoteToCache({
+        origin_city_id: originCityId,
+        origin_city_name: originCityName,
+        destination_city_id: destination_city_id,
+        destination_city_name: destination_city_name,
+        weight_bracket: weightBracket,
+        min_freight: minFreight,
+        max_freight: maxFreight,
+        carriers: carriers.map((c) => ({
+          carrier: c.carrier_name,
+          carrier_code: c.carrier_name,
+          shipping_price: c.precio_envio,
+          insurance_price: c.seguro_envio,
+          total_freight: c.flete_total,
+          has_coverage: c.available,
+          error: c.error_message,
+        })),
+        quoted_at: now,
+        updated_at: now,
+      }).catch((e) => console.warn('Error guardando en freight cache:', e.message));
+    }
+
     return {
       ok: availableCarriers.length > 0,
+      is_cached: false,
+      is_live: true,
       quoted_at: now,
       sale_price,
       product_cost: costProductTotal,
@@ -378,6 +575,23 @@ export async function quoteLiveDropiFreight(options: {
     };
   } catch (err: any) {
     console.error('Error llamando /bff/orders/quote Dropi:', err);
+    // En caso de falla de red o error inesperado, acudir a caché histórica
+    const cached = await getFreightQuoteFromCache(originCityId, destination_city_id, weightBracket);
+    if (cached) {
+      return buildQuoteFromCache({
+        cached,
+        product,
+        quantity,
+        sale_price,
+        chargeableWeight: pesoFinal,
+        originCityId,
+        originCityName,
+        destinationCityId: destination_city_id,
+        destinationCityName: destination_city_name,
+        now,
+      });
+    }
+
     return {
       ok: false,
       quoted_at: now,
@@ -390,7 +604,7 @@ export async function quoteLiveDropiFreight(options: {
       carriers: [],
       origin_city: { id: originCityId, name: originCityName },
       destination_city: { id: destination_city_id, name: destination_city_name },
-      error: `Error de conexión con Dropi: ${err.message}`,
+      error: `Error de conexión con Dropi y sin historial para esta ruta: ${err.message}`,
       code: 'API_ERROR',
     };
   }

@@ -121,6 +121,30 @@ export interface DbCodOrder {
   updated_at: string;
 }
 
+export interface CachedCarrierQuote {
+  carrier: string;
+  carrier_code?: string;
+  shipping_price: number;
+  insurance_price: number;
+  total_freight: number;
+  has_coverage: boolean;
+  error?: string | null;
+}
+
+export interface CachedFreightRoute {
+  id?: number;
+  origin_city_id: number;
+  origin_city_name: string;
+  destination_city_id: number;
+  destination_city_name: string;
+  weight_bracket: string;
+  min_freight: number;
+  max_freight: number;
+  carriers: CachedCarrierQuote[];
+  quoted_at: string;
+  updated_at: string;
+}
+
 // ------------------------------------------------------------------------------
 // INSTANCIA LAZY SQLITE (Para scripts locales sin romper serverless de Vercel)
 // ------------------------------------------------------------------------------
@@ -166,6 +190,22 @@ export function getSqliteDb() {
           created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_ai_creatives_product ON product_ai_creatives (product_id, combo_type);
+
+        CREATE TABLE IF NOT EXISTS freight_quotes_cache (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          origin_city_id INTEGER NOT NULL,
+          origin_city_name TEXT NOT NULL,
+          destination_city_id INTEGER NOT NULL,
+          destination_city_name TEXT NOT NULL,
+          weight_bracket TEXT NOT NULL,
+          min_freight INTEGER NOT NULL,
+          max_freight INTEGER NOT NULL,
+          carriers TEXT NOT NULL,
+          quoted_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(origin_city_id, destination_city_id, weight_bracket)
+        );
+        CREATE INDEX IF NOT EXISTS idx_freight_cache_lookup ON freight_quotes_cache(origin_city_id, destination_city_id, weight_bracket);
       `);
     } catch {}
   }
@@ -697,6 +737,120 @@ export async function setAppSetting(key: string, value: string): Promise<boolean
   } catch {
     return false;
   }
+}
+
+/**
+ * Guarda o actualiza una cotización de flete en la caché histórica (Supabase + SQLite)
+ */
+export async function saveFreightQuoteToCache(item: CachedFreightRoute): Promise<boolean> {
+  const now = new Date().toISOString();
+  if (isSupabaseConfigured) {
+    try {
+      const { error } = await supabaseAdmin.from('freight_quotes_cache').upsert(
+        {
+          origin_city_id: item.origin_city_id,
+          origin_city_name: item.origin_city_name,
+          destination_city_id: item.destination_city_id,
+          destination_city_name: item.destination_city_name,
+          weight_bracket: item.weight_bracket,
+          min_freight: item.min_freight,
+          max_freight: item.max_freight,
+          carriers: item.carriers,
+          quoted_at: item.quoted_at || now,
+          updated_at: now,
+        },
+        { onConflict: 'origin_city_id,destination_city_id,weight_bracket' }
+      );
+      if (error) {
+        console.warn('[DB] Error guardando freight_quotes_cache en Supabase:', error.message);
+      }
+    } catch (e: any) {
+      console.warn('[DB] Excepción guardando freight_quotes_cache en Supabase:', e.message);
+    }
+  }
+
+  try {
+    const s = getSqliteDb();
+    s.prepare(`
+      INSERT INTO freight_quotes_cache (
+        origin_city_id, origin_city_name, destination_city_id, destination_city_name,
+        weight_bracket, min_freight, max_freight, carriers, quoted_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(origin_city_id, destination_city_id, weight_bracket) DO UPDATE SET
+        min_freight = excluded.min_freight,
+        max_freight = excluded.max_freight,
+        carriers = excluded.carriers,
+        quoted_at = excluded.quoted_at,
+        updated_at = excluded.updated_at
+    `).run(
+      item.origin_city_id,
+      item.origin_city_name,
+      item.destination_city_id,
+      item.destination_city_name,
+      item.weight_bracket,
+      item.min_freight,
+      item.max_freight,
+      typeof item.carriers === 'string' ? item.carriers : JSON.stringify(item.carriers),
+      item.quoted_at || now,
+      now
+    );
+    return true;
+  } catch (err: any) {
+    console.warn('[DB] Error guardando freight_quotes_cache en SQLite:', err.message);
+    return false;
+  }
+}
+
+/**
+ * Consulta la cotización histórica más reciente para una ruta y rango de peso (Supabase -> SQLite)
+ */
+export async function getFreightQuoteFromCache(
+  originCityId: number,
+  destinationCityId: number,
+  weightBracket: string
+): Promise<CachedFreightRoute | null> {
+  // 1. Consultar en Supabase (PostgreSQL en la nube de producción)
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('freight_quotes_cache')
+        .select('*')
+        .eq('origin_city_id', originCityId)
+        .eq('destination_city_id', destinationCityId)
+        .eq('weight_bracket', weightBracket)
+        .maybeSingle();
+
+      if (!error && data) {
+        return {
+          ...data,
+          carriers: typeof data.carriers === 'string' ? JSON.parse(data.carriers) : data.carriers,
+        };
+      }
+    } catch (e: any) {
+      console.warn('[DB] Error consultando freight_quotes_cache en Supabase:', e.message);
+    }
+  }
+
+  // 2. Fallback a SQLite local
+  try {
+    const s = getSqliteDb();
+    const row = s.prepare(`
+      SELECT * FROM freight_quotes_cache
+      WHERE origin_city_id = ? AND destination_city_id = ? AND weight_bracket = ?
+    `).get(originCityId, destinationCityId, weightBracket) as any;
+
+    if (row) {
+      return {
+        ...row,
+        carriers: typeof row.carriers === 'string' ? JSON.parse(row.carriers) : row.carriers,
+      };
+    }
+  } catch (e: any) {
+    console.warn('[DB] Error consultando freight_quotes_cache en SQLite:', e.message);
+  }
+
+  return null;
 }
 
 /**

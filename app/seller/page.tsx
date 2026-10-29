@@ -739,20 +739,61 @@ export default function SellerPortalPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
                     <Calculator className="w-4 h-4 text-emerald-600" />
-                    <span>Desglose de Liquidación en Vivo</span>
+                    <span>
+                      {quoteData?.is_cached
+                        ? 'Desglose de Liquidación Estimada (Respaldo)'
+                        : 'Desglose de Liquidación en Vivo'}
+                    </span>
                   </h3>
                   {quoteData && (
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {new Date(quoteData.quoted_at).toLocaleTimeString('es-CO', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {quoteData.is_cached ? (
+                        <span className="text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-amber-600" />
+                          <span>Respaldo Histórico</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>En Vivo</span>
+                        </span>
+                      )}
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {new Date(quoteData.quoted_at).toLocaleTimeString('es-CO', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
                   )}
                 </div>
 
                 {quoteData ? (
                   <div className="space-y-3">
+                    {/* Alerta de Modo Respaldo / Flete Estimado Histórico */}
+                    {quoteData.is_cached && (
+                      <div className="bg-amber-50 border border-amber-200/90 p-3 rounded-2xl text-xs space-y-1.5 text-amber-950">
+                        <div className="flex items-center gap-2 font-black text-amber-900">
+                          <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                          <span>Tarifa de flete estimada de respaldo</span>
+                        </div>
+                        <p className="text-[11px] text-amber-800 leading-snug">
+                          {quoteData.disclaimer ||
+                            `Basada en tarifas reales registradas el ${new Date(
+                              quoteData.cached_at || quoteData.quoted_at
+                            ).toLocaleDateString('es-CO')}. El flete final exacto se confirma cuando el administrador monta el pedido en bodega.`}
+                        </p>
+                        {quoteData.is_stale && (
+                          <div className="bg-red-50 border border-red-200 p-2 rounded-xl text-[10px] text-red-800 font-bold flex items-center gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+                            <span>
+                              Atención: Esta cotización histórica tiene más de 30 días de antigüedad y no debe tomarse como exacta. Las transportadoras pueden haber ajustado sus tarifas.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Alerta de cobertura Inter Rapidísimo */}
                     {quoteData.inter_available ? (
                       <div className="bg-emerald-50 border border-emerald-200/80 p-2.5 rounded-xl text-xs font-bold text-emerald-900 flex items-center gap-2">
