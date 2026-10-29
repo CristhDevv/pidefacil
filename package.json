@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "db:seed": "tsx scripts/seed-initial.ts",
+    "test": "tsx tests/runner.ts",
     "test:pricing": "tsx tests/pricing.test.ts",
     "dropi:probe": "tsx scripts/dropi-probe.ts",
     "dropi:sync": "tsx scripts/dropi-sync.ts",
