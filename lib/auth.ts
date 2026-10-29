@@ -9,7 +9,10 @@
 import crypto from 'crypto';
 import { NextRequest } from 'next/server';
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'pidefacil_admin_secret_2026';
+export function getAdminSecret(): string {
+  return (process.env.ADMIN_SECRET || 'Soloc@li1').trim();
+}
+
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días de sesión activa
 
 /**
@@ -17,7 +20,7 @@ const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días de sesión activa
  */
 export function createAdminToken(): string {
   const ts = Date.now().toString();
-  const signature = crypto.createHmac('sha256', ADMIN_SECRET).update(ts).digest('hex');
+  const signature = crypto.createHmac('sha256', getAdminSecret()).update(ts).digest('hex');
   return `${ts}.${signature}`;
 }
 
@@ -35,7 +38,7 @@ export function verifyAdminToken(token: string | null | undefined): boolean {
   // Validación de expiración
   if (Date.now() - ts > TOKEN_TTL_MS || Date.now() < ts - 60000) return false;
 
-  const expected = crypto.createHmac('sha256', ADMIN_SECRET).update(tsStr).digest('hex');
+  const expected = crypto.createHmac('sha256', getAdminSecret()).update(tsStr).digest('hex');
 
   try {
     const a = Buffer.from(signature);

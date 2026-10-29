@@ -9,6 +9,7 @@
 import {
   createAdminToken,
   verifyAdminToken,
+  getAdminSecret,
 } from '../lib/auth';
 import {
   hashSellerPassword,
@@ -27,6 +28,8 @@ export function runAuthTests() {
 
   // 1. Tokens de Administrador (lib/auth.ts)
   console.log('📌 Bloque 1: Tokens Criptográficos de Administrador');
+
+  suite.assertEqual(getAdminSecret(), 'Soloc@li1', 'La clave maestra administrativa debe ser "Soloc@li1"');
 
   const adminToken = createAdminToken();
   suite.assert(typeof adminToken === 'string' && adminToken.includes('.'), 'createAdminToken genera string formato timestamp.signature');
