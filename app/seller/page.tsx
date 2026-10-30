@@ -30,6 +30,7 @@ import {
   Sparkles,
   Crown,
   MessageCircle,
+  X,
 } from 'lucide-react';
 
 interface SellerSession {
@@ -69,6 +70,8 @@ export default function SellerPortalPage() {
   // Buscador de productos
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ProductSummary[]>([]);
+  const [initialCatalog, setInitialCatalog] = useState<ProductSummary[]>([]);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductSummary | null>(null);
 
@@ -132,7 +135,26 @@ export default function SellerPortalPage() {
     }
   }, [selectedDept]);
 
-  // 3. Buscar productos para cotizar
+  // 3. Cargar catálogo inicial de productos para que siempre haya productos visibles
+  useEffect(() => {
+    async function loadCatalog() {
+      setIsLoadingCatalog(true);
+      try {
+        const res = await fetch('/api/products?limit=12');
+        const json = await res.json();
+        if (json.success && json.data) {
+          setInitialCatalog(json.data);
+        }
+      } catch (err) {
+        console.error('Error cargando catálogo inicial para vendedor:', err);
+      } finally {
+        setIsLoadingCatalog(false);
+      }
+    }
+    loadCatalog();
+  }, []);
+
+  // 4. Buscar productos para cotizar (mantiene productos visibles)
   useEffect(() => {
     if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       setSearchResults([]);
@@ -141,7 +163,7 @@ export default function SellerPortalPage() {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res = await fetch(`/api/products?search=${encodeURIComponent(searchQuery)}&limit=6`);
+        const res = await fetch(`/api/products?search=${encodeURIComponent(searchQuery.trim())}&limit=20`);
         const json = await res.json();
         if (json.success && json.data) {
           setSearchResults(json.data);
@@ -150,7 +172,7 @@ export default function SellerPortalPage() {
       } finally {
         setIsSearching(false);
       }
-    }, 300);
+    }, 250);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -178,8 +200,6 @@ export default function SellerPortalPage() {
   // Selección de producto
   const handleSelectProduct = (prod: ProductSummary) => {
     setSelectedProduct(prod);
-    setSearchQuery('');
-    setSearchResults([]);
     setCustomSalePrice(prod.suggested_price_cop || prod.sell_price_cop);
     setQuoteData(null);
     setQuoteError(null);
@@ -472,96 +492,28 @@ export default function SellerPortalPage() {
                   )}
                 </div>
 
-                {!selectedProduct ? (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Buscar por nombre o ID (ej: ollas, reloj, colágeno)..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                      />
-                      {isSearching && (
-                        <RefreshCw className="w-4 h-4 text-slate-400 animate-spin absolute right-3.5 top-3.5" />
-                      )}
-                    </div>
-
-                    {searchResults.length > 0 && (
-                      <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 bg-white shadow-lg max-h-60 overflow-y-auto">
-                        {searchResults.map((prod) => (
-                          <div
-                            key={prod.id_dropi}
-                            onClick={() => handleSelectProduct(prod)}
-                            className="p-3 hover:bg-emerald-50/50 cursor-pointer flex items-center justify-between gap-3 transition"
-                          >
-                            <div className="flex items-center gap-3">
-                              {prod.image_url ? (
-                                <img
-                                  src={prod.image_url}
-                                  alt={prod.name}
-                                  className="w-10 h-10 object-cover rounded-xl border border-slate-100"
-                                />
-                              ) : (
-                                <div className="w-10 h-10 bg-slate-100 rounded-xl" />
-                              )}
-                              <div>
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <p className="text-xs font-bold text-slate-800 line-clamp-1">{prod.name}</p>
-                                  {prod.supplier_badge === 'PREMIUM EXCLUSIVO' && (
-                                    <span className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.2 rounded border border-amber-300">
-                                      👑 Exclusivo
-                                    </span>
-                                  )}
-                                  {prod.supplier_badge === 'PREMIUM' && (
-                                    <span className="text-[9px] bg-purple-100 text-purple-800 font-extrabold px-1.5 py-0.2 rounded border border-purple-300">
-                                      💎 Premium
-                                    </span>
-                                  )}
-                                  {(prod.supplier_badge === 'VERIFICADO' || prod.supplier_badge === 'VERIFIED') && (
-                                    <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.2 rounded border border-emerald-300">
-                                      🛡️ Verificado
-                                    </span>
-                                  )}
-                                  {prod.has_real_measures && (
-                                    <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.2 rounded border border-emerald-300">
-                                      ⚖️ Medidas OK
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[10px] text-slate-400">
-                                  ID: #{prod.id_dropi} • {prod.supplier_name || 'Bodega Nacional'}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xs font-black text-emerald-700">{formatCOP(Math.round((prod.cost_cop || 0) * 1.05))}</p>
-                              <p className="text-[10px] text-slate-400">Costo mayorista</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between gap-4">
+                {/* Tarjeta de Producto Seleccionado Activo */}
+                {selectedProduct && (
+                  <div className="p-4 bg-emerald-50/60 rounded-2xl border-2 border-emerald-400 flex items-center justify-between gap-4 shadow-xs">
                     <div className="flex items-center gap-3">
                       {selectedProduct.image_url && (
                         <img
                           src={selectedProduct.image_url}
                           alt={selectedProduct.name}
-                          className="w-14 h-14 object-cover rounded-2xl border border-slate-200"
+                          className="w-14 h-14 object-cover rounded-2xl border border-emerald-200"
                         />
                       )}
                       <div>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] bg-white border border-slate-200 text-slate-700 font-black px-2 py-0.5 rounded-md">
+                          <span className="text-[10px] bg-white border border-emerald-300 text-emerald-800 font-black px-2 py-0.5 rounded-md">
                             #{selectedProduct.id_dropi}
+                          </span>
+                          <span className="text-[10px] bg-emerald-600 text-white font-extrabold px-2 py-0.5 rounded-md">
+                            ✓ Activo para cotizar
                           </span>
                           {selectedProduct.supplier_badge === 'PREMIUM EXCLUSIVO' && (
                             <span className="text-[9px] bg-amber-500 text-white font-extrabold px-1.5 py-0.2 rounded">
-                              👑 Exclusivo TOP 1%
+                              👑 Exclusivo
                             </span>
                           )}
                           {selectedProduct.supplier_badge === 'PREMIUM' && (
@@ -584,12 +536,146 @@ export default function SellerPortalPage() {
                       </div>
                     </div>
 
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <p className="text-xs font-black text-slate-900">{formatCOP(Math.round((selectedProduct.cost_cop || 0) * 1.05))}</p>
-                      <p className="text-[10px] text-slate-400">Costo Mayorista (5% incl.)</p>
+                      <p className="text-[10px] text-slate-500">Costo (5% incl.)</p>
                     </div>
                   </div>
                 )}
+
+                {/* Barra de Búsqueda Permanente (Nunca desaparece) */}
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Buscar por nombre o ID (ej: ollas, reloj, colágeno)..."
+                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 transition"
+                        title="Borrar búsqueda"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    {isSearching && (
+                      <RefreshCw className="w-4 h-4 text-slate-400 animate-spin absolute right-9 top-3.5" />
+                    )}
+                  </div>
+
+                  {/* Listado de Productos Siempre Visible */}
+                  {(() => {
+                    const isSearchActive = searchQuery.trim().length >= 2;
+                    const displayProducts = isSearchActive ? searchResults : initialCatalog;
+
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold px-1">
+                          <span>
+                            {isSearchActive
+                              ? `Resultados para "${searchQuery}" (${searchResults.length})`
+                              : 'Catálogo disponible para cotizar:'}
+                          </span>
+                          {isSearchActive && (
+                            <button
+                              type="button"
+                              onClick={() => setSearchQuery('')}
+                              className="text-emerald-700 hover:underline"
+                            >
+                              Ver catálogo general
+                            </button>
+                          )}
+                        </div>
+
+                        {isLoadingCatalog && displayProducts.length === 0 ? (
+                          <div className="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl">
+                            Cargando catálogo...
+                          </div>
+                        ) : displayProducts.length === 0 ? (
+                          <div className="p-4 text-center text-xs text-slate-500 bg-slate-50 rounded-2xl border border-slate-200">
+                            No encontramos productos con &ldquo;{searchQuery}&rdquo;. Borra el texto para ver el catálogo general.
+                          </div>
+                        ) : (
+                          <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 bg-white shadow-xs max-h-72 overflow-y-auto">
+                            {displayProducts.map((prod) => {
+                              const isSelected = selectedProduct?.id_dropi === prod.id_dropi;
+                              return (
+                                <div
+                                  key={prod.id_dropi}
+                                  onClick={() => handleSelectProduct(prod)}
+                                  className={`p-3 cursor-pointer flex items-center justify-between gap-3 transition ${
+                                    isSelected
+                                      ? 'bg-emerald-50/80 border-l-4 border-emerald-600'
+                                      : 'hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    {prod.image_url ? (
+                                      <img
+                                        src={prod.image_url}
+                                        alt={prod.name}
+                                        className="w-11 h-11 object-cover rounded-xl border border-slate-100 shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-11 h-11 bg-slate-100 rounded-xl shrink-0" />
+                                    )}
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <p className="text-xs font-bold text-slate-800 truncate">{prod.name}</p>
+                                        {prod.supplier_badge === 'PREMIUM EXCLUSIVO' && (
+                                          <span className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.2 rounded border border-amber-300">
+                                            👑 Exclusivo
+                                          </span>
+                                        )}
+                                        {prod.supplier_badge === 'PREMIUM' && (
+                                          <span className="text-[9px] bg-purple-100 text-purple-800 font-extrabold px-1.5 py-0.2 rounded border border-purple-300">
+                                            💎 Premium
+                                          </span>
+                                        )}
+                                        {(prod.supplier_badge === 'VERIFICADO' || prod.supplier_badge === 'VERIFIED') && (
+                                          <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.2 rounded border border-emerald-300">
+                                            🛡️ Verificado
+                                          </span>
+                                        )}
+                                        {prod.has_real_measures && (
+                                          <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.2 rounded border border-emerald-300">
+                                            ⚖️ Medidas OK
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-[10px] text-slate-400 mt-0.5">
+                                        ID: #{prod.id_dropi} • {prod.supplier_name || 'Bodega Nacional'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <p className="text-xs font-black text-emerald-700">{formatCOP(Math.round((prod.cost_cop || 0) * 1.05))}</p>
+                                    <p className="text-[10px] text-slate-400 mb-1">Costo (5% incl.)</p>
+                                    <span
+                                      className={`inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-lg transition ${
+                                        isSelected
+                                          ? 'bg-emerald-600 text-white'
+                                          : 'bg-slate-100 text-slate-600'
+                                      }`}
+                                    >
+                                      {isSelected ? '✓ Activo' : 'Seleccionar'}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
 
                 {/* Advertencia si no tiene peso/dimensiones reales */}
                 {selectedProduct && (!selectedProduct.weight_kg || !selectedProduct.length_cm || !selectedProduct.width_cm || !selectedProduct.height_cm || Number(selectedProduct.weight_kg) <= 0 || Number(selectedProduct.length_cm) <= 0 || Number(selectedProduct.width_cm) <= 0 || Number(selectedProduct.height_cm) <= 0) && (

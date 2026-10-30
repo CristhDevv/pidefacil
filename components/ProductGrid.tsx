@@ -4,9 +4,10 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatCOP } from '@/config/pricing';
-import { Truck, CheckCircle2, ArrowRight, Briefcase, Crown, Sparkles } from 'lucide-react';
+import { Truck, CheckCircle2, ArrowRight, Briefcase, Crown, Sparkles, Download } from 'lucide-react';
 import { getProductDisplayImageUrl } from '@/lib/image-url';
 import { useAuth } from '@/context/AuthContext';
+import { downloadCtaImage } from '@/lib/cta-image-generator';
 
 export interface ProductSummary {
   id_dropi: number;
@@ -152,6 +153,33 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                     <span>Pagas en casa</span>
                   </div>
                 )}
+
+                {/* Botón Rápido de Descarga de Foto con Precios CTA */}
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    try {
+                      await downloadCtaImage(
+                        {
+                          imageUrl: displayImage,
+                          productName: prod.name,
+                          singlePrice: prod.sell_price_cop,
+                          duoPrice: prod.duo_price_cop,
+                          duoSavings: prod.duo_savings_cop,
+                        },
+                        `pidefacil-${prod.id_dropi}-con-precios.jpg`
+                      );
+                    } catch (err) {
+                      console.error('Error al descargar foto con precios:', err);
+                    }
+                  }}
+                  className="absolute top-1.5 right-1.5 w-7 h-7 rounded-lg bg-white/90 hover:bg-white text-slate-600 hover:text-emerald-700 shadow-xs flex items-center justify-center transition active:scale-95 z-10 border border-slate-200/60"
+                  title="Descargar foto con precios CTA"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </button>
 
                 {/* Badge de Stock para Vendedores / Admin */}
                 {showRolePricing && prod.stock_real > 0 && (

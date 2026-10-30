@@ -11,6 +11,7 @@ import { getProductDisplayImageUrl } from '@/lib/image-url';
 import { CodCheckoutModal } from '@/components/CodCheckoutModal';
 import { OrderSuccessModal } from '@/components/OrderSuccessModal';
 import { useAuth } from '@/context/AuthContext';
+import { downloadCtaImage } from '@/lib/cta-image-generator';
 import {
   ArrowLeft,
   ShieldCheck,
@@ -33,6 +34,9 @@ import {
   Building2,
   Info,
   MessageCircle,
+  Download,
+  RefreshCw,
+  Layers,
 } from 'lucide-react';
 
 export default function ProductDetailPage() {
@@ -154,6 +158,58 @@ export default function ProductDetailPage() {
 
   const handlePrevImage = () => {
     setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  // Estado y descarga de fotos con precios CTA
+  const [isDownloadingPhoto, setIsDownloadingPhoto] = useState(false);
+
+  const handleDownloadPhoto = async (index: number) => {
+    const targetUrl = images[index] || primaryDisplayImage;
+    if (!targetUrl || !product) return;
+    setIsDownloadingPhoto(true);
+    try {
+      await downloadCtaImage(
+        {
+          imageUrl: targetUrl,
+          productName: product.name,
+          singlePrice: activeSellPrice,
+          duoPrice: activeDuoPrice,
+          duoSavings: activeDuoSavings,
+        },
+        `pidefacil-${product.id_dropi}-foto-${index + 1}-con-precios.jpg`
+      );
+    } catch (err: any) {
+      console.error('Error al descargar foto con CTA:', err);
+      alert('No se pudo generar la imagen para descarga. Por favor intenta de nuevo.');
+    } finally {
+      setIsDownloadingPhoto(false);
+    }
+  };
+
+  const handleDownloadAllPhotos = async () => {
+    if (!product || images.length === 0) return;
+    setIsDownloadingPhoto(true);
+    try {
+      for (let i = 0; i < images.length; i++) {
+        await downloadCtaImage(
+          {
+            imageUrl: images[i],
+            productName: product.name,
+            singlePrice: activeSellPrice,
+            duoPrice: activeDuoPrice,
+            duoSavings: activeDuoSavings,
+          },
+          `pidefacil-${product.id_dropi}-foto-${i + 1}-con-precios.jpg`
+        );
+        if (i < images.length - 1) {
+          await new Promise((r) => setTimeout(r, 450));
+        }
+      }
+    } catch (err: any) {
+      console.error('Error al descargar fotos:', err);
+    } finally {
+      setIsDownloadingPhoto(false);
+    }
   };
 
   // ----------------------------------------------------------------------------
@@ -287,6 +343,76 @@ export default function ProductDetailPage() {
           {/* Insignia Flotante: Pagas al recibir */}
           <div className="absolute top-3 left-3 bg-amber-100/95 backdrop-blur-sm text-[#B45309] text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-xs border border-amber-200/60 font-sans">
             <span>💵 Pagas en casa al recibir</span>
+          </div>
+        </div>
+
+        {/* Miniaturas de la galería cuando hay más de una foto */}
+        {images.length > 1 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 no-scrollbar">
+            {images.map((imgUrl: string, idx: number) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setActiveImageIndex(idx)}
+                className={`relative w-14 h-14 rounded-2xl overflow-hidden border-2 shrink-0 transition ${
+                  idx === activeImageIndex
+                    ? 'border-emerald-600 shadow-xs ring-2 ring-emerald-500/20'
+                    : 'border-slate-200 opacity-60 hover:opacity-100'
+                }`}
+              >
+                <Image
+                  src={imgUrl}
+                  alt={`${product.name} ${idx + 1}`}
+                  fill
+                  className="object-cover"
+                  unoptimized={true}
+                />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Botón de Descarga de Fotos con Precios CTA para todos los visitantes y vendedores */}
+        <div className="bg-white p-3.5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+              <Download className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-black text-slate-900 leading-tight">
+                Descargar Foto Promocional (con Precios)
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Lleva 1: <strong className="text-slate-800 font-bold">{formatCOP(activeSellPrice)}</strong> • Lleva 2: <strong className="text-emerald-700 font-bold">{formatCOP(activeDuoPrice)}</strong>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => handleDownloadPhoto(activeImageIndex)}
+              disabled={isDownloadingPhoto}
+              className="flex-1 sm:flex-initial bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 active:scale-95 text-white text-xs font-extrabold py-2.5 px-4 rounded-2xl shadow-xs transition flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isDownloadingPhoto ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              <span>Descargar Foto Actual</span>
+            </button>
+            {images.length > 1 && (
+              <button
+                type="button"
+                onClick={handleDownloadAllPhotos}
+                disabled={isDownloadingPhoto}
+                className="bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold py-2.5 px-3.5 rounded-2xl transition flex items-center justify-center gap-1.5 disabled:opacity-50 border border-slate-200"
+                title="Descargar todas las fotos de la galería con precios"
+              >
+                <Layers className="w-4 h-4 text-slate-500" />
+                <span>Todas ({images.length})</span>
+              </button>
+            )}
           </div>
         </div>
 

@@ -317,6 +317,11 @@ export const Header: React.FC<HeaderProps> = ({
             onFocus={() => {
               if (suggestions.length > 0) setShowDropdown(true);
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setShowDropdown(false);
+              }
+            }}
             onChange={(e) => setLocalQuery(e.target.value)}
             placeholder="¿Qué producto buscas hoy? (ej. reloj, luz, tónico, masajeador...)"
             className="w-full pl-9 pr-9 py-2 bg-slate-100 hover:bg-slate-100/80 focus:bg-white text-slate-900 placeholder:text-slate-400 rounded-xl border border-transparent focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-sans font-medium transition-all"
