@@ -136,35 +136,37 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
   ctx.fillRect(0, 0, width, height);
 
   // =========================================================================
-  // ZONA 1: CINTILLO SUPERIOR DE CONFIANZA (y: 0 a 80px, alto: 80px)
+  // ZONA 1: CINTILLO SUPERIOR DE CONFIANZA (y: 0 a 140px, alto: 140px)
+  // Optimizado con zona segura para barra de estado de WhatsApp / Instagram Stories
   // =========================================================================
-  const topBarH = 80;
+  const topBarH = 140;
   ctx.fillStyle = '#064E3B'; // Esmeralda institucional oscuro
   ctx.fillRect(0, 0, width, topBarH);
 
-  ctx.font = 'bold 26px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.font = 'bold 24px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🚚 ENVÍO GRATIS A TODA COLOMBIA  •  💵 PAGA AL RECIBIR EN CASA', width / 2, topBarH / 2);
+  // El texto se posiciona en y: 108px para quedar 100% visible y libre del encabezado de WhatsApp
+  ctx.fillText('🚚 ENVÍO GRATIS A TODA COLOMBIA  •  💵 PAGA AL RECIBIR EN CASA', width / 2, 108);
 
   // =========================================================================
-  // ZONA 2: ENCABEZADO CON TÍTULO DEL PRODUCTO (y: 80 a 420px, alto: 340px)
+  // ZONA 2: ENCABEZADO CON TÍTULO DEL PRODUCTO (y: 140 a 400px, alto: 260px)
   // =========================================================================
   const headerY = topBarH;
-  const headerH = 340;
+  const headerH = 260;
 
   // Fondo sutil blanco con borde divisorio
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, headerY, width, headerH);
 
   // Badges superiores: Logo y Garantía
-  const badgeY = headerY + 22;
+  const badgeY = headerY + 16;
 
   // Badge Izquierdo: 100% Seguro
   ctx.save();
   ctx.fillStyle = '#ECFDF5';
-  drawRoundedRect(ctx, 50, badgeY, 260, 42, 12);
+  drawRoundedRect(ctx, 50, badgeY, 260, 40, 12);
   ctx.fill();
   ctx.strokeStyle = '#A7F3D0';
   ctx.lineWidth = 1.5;
@@ -174,14 +176,14 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
   ctx.fillStyle = '#065F46';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🛡️ COMPRA 100% PROTEGIDA', 50 + 130, badgeY + 21);
+  ctx.fillText('🛡️ COMPRA 100% PROTEGIDA', 50 + 130, badgeY + 20);
   ctx.restore();
 
   // Badge Derecho: Marca PideFácil.co
   const brandX = width - 50 - 200;
   ctx.save();
   ctx.fillStyle = '#F8FAFC';
-  drawRoundedRect(ctx, brandX, badgeY, 200, 42, 12);
+  drawRoundedRect(ctx, brandX, badgeY, 200, 40, 12);
   ctx.fill();
   ctx.strokeStyle = '#E2E8F0';
   ctx.lineWidth = 1.5;
@@ -191,12 +193,12 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#0F172A';
-  ctx.fillText('Pide', brandX + 60, badgeY + 21);
+  ctx.fillText('Pide', brandX + 60, badgeY + 20);
   ctx.fillStyle = '#0047BA';
-  ctx.fillText('Fácil', brandX + 112, badgeY + 21);
+  ctx.fillText('Fácil', brandX + 112, badgeY + 20);
   ctx.font = 'bold 16px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = '#94A3B8';
-  ctx.fillText('.co', brandX + 162, badgeY + 21);
+  ctx.fillText('.co', brandX + 162, badgeY + 20);
   ctx.restore();
 
   // Título del Producto: Grande, legible y centrado
@@ -207,10 +209,10 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
   ctx.textBaseline = 'middle';
 
   const maxTitleW = width - 100; // 980px
-  const titleLines = wrapText(ctx, productName, maxTitleW, 3);
+  const titleLines = wrapText(ctx, productName, maxTitleW, 2);
   const lineHeight = 54;
   const totalTitleHeight = titleLines.length * lineHeight;
-  const titleStartY = headerY + 85 + (headerH - 85 - totalTitleHeight) / 2 + lineHeight / 2;
+  const titleStartY = headerY + 80 + (headerH - 80 - totalTitleHeight) / 2 + lineHeight / 2;
 
   titleLines.forEach((line, idx) => {
     ctx.fillText(line, width / 2, titleStartY + idx * lineHeight);
@@ -222,12 +224,12 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
   ctx.fillRect(40, headerY + headerH - 1, width - 80, 1.5);
 
   // =========================================================================
-  // ZONA 3: FOTO REAL DEL PRODUCTO (y: 420 a 1420px, alto: 1000px)
+  // ZONA 3: FOTO REAL DEL PRODUCTO (y: 400 a 1360px, alto: 960px)
   // =========================================================================
   const photoBoxX = 20;
-  const photoBoxY = 420;
+  const photoBoxY = 400;
   const photoBoxW = width - 40; // 1040px
-  const photoBoxH = 1000;
+  const photoBoxH = 960;
 
   // Fondo blanco puro para que resalte la foto
   ctx.fillStyle = '#FFFFFF';
@@ -239,7 +241,7 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
   const imgAspect = imgW / imgH;
 
   const maxPhotoW = 1020;
-  const maxPhotoH = 960;
+  const maxPhotoH = 920;
   const targetAspect = maxPhotoW / maxPhotoH;
 
   let drawW = maxPhotoW;
@@ -268,7 +270,7 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
   const certW = 210;
   const certH = 38;
   const certX = width - 50 - certW;
-  const certY = photoBoxY + photoBoxH - 50;
+  const certY = photoBoxY + photoBoxH - 45;
   ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
   drawRoundedRect(ctx, certX, certY, certW, certH, 10);
   ctx.fill();
@@ -280,10 +282,10 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
   ctx.restore();
 
   // =========================================================================
-  // ZONA 4: FRANJA CTA INFERIOR DE PRECIOS Y COMPRA (y: 1420 a 1920px, alto: 500px)
+  // ZONA 4: FRANJA CTA INFERIOR DE PRECIOS Y COMPRA (y: 1360 a 1920px, alto: 560px)
   // =========================================================================
-  const ctaY = 1420;
-  const ctaH = 500;
+  const ctaY = 1360;
+  const ctaH = 560;
 
   // Fondo degradado de alto contraste: Verde esmeralda profundo a Azul medianoche
   const grad = ctx.createLinearGradient(0, ctaY, 0, height);
@@ -295,7 +297,7 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
 
   // Borde superior luminoso esmeralda
   ctx.fillStyle = '#10B981';
-  ctx.fillRect(0, ctaY, width, 6);
+  ctx.fillRect(0, ctaY, width, 5);
 
   // Comprobar si hay oferta de 2 unidades diferente al unitario
   const hasValidDuo = Boolean(duoPrice && duoPrice > 0 && duoPrice !== singlePrice);
@@ -305,7 +307,7 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
     // DOS TARJETAS PARALELAS: 1 UNIDAD vs 2 UNIDADES (COMBO HERO)
     // -----------------------------------------------------------------------
     const cardW = 485;
-    const cardH = 220;
+    const cardH = 210;
     const cardY = ctaY + 28;
 
     // --- TARJETA 1: 1 UNIDAD (Izquierda) ---
@@ -323,17 +325,17 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
     ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText('LLEVA 1 UNIDAD', card1X + cardW / 2, cardY + 20);
+    ctx.fillText('LLEVA 1 UNIDAD', card1X + cardW / 2, cardY + 22);
 
     // Precio 1x grande
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '900 56px system-ui, -apple-system, sans-serif';
-    ctx.fillText(formatCOP(singlePrice), card1X + cardW / 2, cardY + 62);
+    ctx.fillText(formatCOP(singlePrice), card1X + cardW / 2, cardY + 68);
 
     // Envío gratis
     ctx.fillStyle = '#34D399';
     ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
-    ctx.fillText('✓ Envío Gratis Incluido', card1X + cardW / 2, cardY + 148);
+    ctx.fillText('✓ Envío Gratis Incluido', card1X + cardW / 2, cardY + 146);
     ctx.restore();
 
     // --- TARJETA 2: 2 UNIDADES COMBO HERO (Derecha) ---
@@ -373,7 +375,7 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
     // Precio 2x gigante dorado
     ctx.fillStyle = '#FBBF24';
     ctx.font = '900 60px system-ui, -apple-system, sans-serif';
-    ctx.fillText(formatCOP(duoPrice!), card2X + cardW / 2, cardY + 62);
+    ctx.fillText(formatCOP(duoPrice!), card2X + cardW / 2, cardY + 68);
 
     // Ahorro
     const savings = duoSavings && duoSavings > 0 ? duoSavings : (singlePrice * 2 - duoPrice!);
@@ -382,14 +384,14 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
       : '💥 ¡Super Descuento en la 2da!';
     ctx.fillStyle = '#6EE7B7';
     ctx.font = '900 20px system-ui, -apple-system, sans-serif';
-    ctx.fillText(savingsText, card2X + cardW / 2, cardY + 148);
+    ctx.fillText(savingsText, card2X + cardW / 2, cardY + 146);
     ctx.restore();
   } else {
     // -----------------------------------------------------------------------
     // TARJETA ÚNICA CENTRADA (Cuando solo tiene 1 precio)
     // -----------------------------------------------------------------------
     const cardW = width - 80; // 1000px
-    const cardH = 220;
+    const cardH = 210;
     const cardX = 40;
     const cardY = ctaY + 28;
 
@@ -426,11 +428,11 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
 
     ctx.fillStyle = '#FBBF24';
     ctx.font = '900 76px system-ui, -apple-system, sans-serif';
-    ctx.fillText(formatCOP(singlePrice), cardX + cardW / 2, cardY + 60);
+    ctx.fillText(formatCOP(singlePrice), cardX + cardW / 2, cardY + 68);
 
     ctx.fillStyle = '#34D399';
     ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
-    ctx.fillText('✓ Envío Gratis a Todo el País • Pago en Efectivo al Recibir', cardX + cardW / 2, cardY + 152);
+    ctx.fillText('✓ Envío Gratis a Todo el País • Pago en Efectivo al Recibir', cardX + cardW / 2, cardY + 146);
     ctx.restore();
   }
 
@@ -438,9 +440,9 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
   // BOTÓN CTA INFERIOR GIGANTE (Pide Aquí y Paga en Casa)
   // -------------------------------------------------------------------------
   const btnW = width - 80; // 1000px
-  const btnH = 92;
+  const btnH = 88;
   const btnX = 40;
-  const btnY = ctaY + 276;
+  const btnY = ctaY + 262;
 
   ctx.save();
   const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX + btnW, btnY);
@@ -448,7 +450,7 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
   btnGrad.addColorStop(0.5, '#059669');
   btnGrad.addColorStop(1, '#047857');
   ctx.fillStyle = btnGrad;
-  drawRoundedRect(ctx, btnX, btnY, btnW, btnH, 26);
+  drawRoundedRect(ctx, btnX, btnY, btnW, btnH, 24);
   ctx.fill();
   ctx.strokeStyle = '#34D399';
   ctx.lineWidth = 3;
@@ -463,17 +465,18 @@ export async function generateCtaImage(options: CtaImageOptions): Promise<string
 
   // -------------------------------------------------------------------------
   // PIE DE PÁGINA DE CONFIANZA Y SEGURIDAD (Garantías)
+  // Posicionado por encima de la zona de respuesta de WhatsApp (y: 1800-1920)
   // -------------------------------------------------------------------------
   ctx.save();
   ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = '#E2E8F0';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🛡️ 100% Seguro  •  Sin tarjetas ni transferencias previas  •  Garantía Total', width / 2, ctaY + 400);
+  ctx.fillText('🛡️ 100% Seguro  •  Sin tarjetas ni transferencias previas  •  Garantía Total', width / 2, ctaY + 378);
 
   ctx.font = '600 16px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = '#94A3B8';
-  ctx.fillText('PideFácil.co  •  Tu compra protegida de principio a fin', width / 2, ctaY + 440);
+  ctx.fillText('PideFácil.co  •  Tu compra protegida de principio a fin', width / 2, ctaY + 412);
   ctx.restore();
 
   return canvas.toDataURL('image/jpeg', 0.95);
