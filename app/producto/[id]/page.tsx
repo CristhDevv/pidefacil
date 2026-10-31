@@ -61,6 +61,9 @@ export default function ProductDetailPage() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<any | null>(null);
 
+  // Estado de descarga de fotos con precios CTA
+  const [isDownloadingPhoto, setIsDownloadingPhoto] = useState(false);
+
   useEffect(() => {
     async function loadProduct() {
       if (!productId) return;
@@ -159,9 +162,6 @@ export default function ProductDetailPage() {
   const handlePrevImage = () => {
     setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
-
-  // Estado y descarga de fotos con precios CTA
-  const [isDownloadingPhoto, setIsDownloadingPhoto] = useState(false);
 
   const handleDownloadPhoto = async (index: number) => {
     const targetUrl = images[index] || primaryDisplayImage;
@@ -360,12 +360,10 @@ export default function ProductDetailPage() {
                     : 'border-slate-200 opacity-60 hover:opacity-100'
                 }`}
               >
-                <Image
+                <img
                   src={imgUrl}
                   alt={`${product.name} ${idx + 1}`}
-                  fill
-                  className="object-cover"
-                  unoptimized={true}
+                  className="w-full h-full object-cover"
                 />
               </button>
             ))}

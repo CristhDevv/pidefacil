@@ -155,8 +155,9 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                 )}
 
                 {/* Botón Rápido de Descarga de Foto con Precios CTA */}
-                <button
-                  type="button"
+                <span
+                  role="button"
+                  tabIndex={0}
                   onClick={async (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -175,11 +176,11 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                       console.error('Error al descargar foto con precios:', err);
                     }
                   }}
-                  className="absolute top-1.5 right-1.5 w-7 h-7 rounded-lg bg-white/90 hover:bg-white text-slate-600 hover:text-emerald-700 shadow-xs flex items-center justify-center transition active:scale-95 z-10 border border-slate-200/60"
+                  className="absolute top-1.5 right-1.5 w-7 h-7 rounded-lg bg-white/90 hover:bg-white text-slate-600 hover:text-emerald-700 shadow-xs flex items-center justify-center transition active:scale-95 z-10 border border-slate-200/60 cursor-pointer"
                   title="Descargar foto con precios CTA"
                 >
                   <Download className="w-3.5 h-3.5" />
-                </button>
+                </span>
 
                 {/* Badge de Stock para Vendedores / Admin */}
                 {showRolePricing && prod.stock_real > 0 && (
