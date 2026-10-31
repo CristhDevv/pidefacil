@@ -23,6 +23,21 @@ export function getProductDisplayImageUrl(product: {
 }
 
 /**
+ * Normaliza la URL de una imagen al CDN oficial de Dropi en CloudFront
+ */
+export function buildCloudFrontImageUrl(rawImage: string | null | undefined): string | null {
+  if (!rawImage) return null;
+  const str = String(rawImage).trim();
+  if (!str) return null;
+  if (str.startsWith('https://d39ru7awumhhs2.cloudfront.net/')) return str;
+  if (str.startsWith('https://dropi.co/')) {
+    return `https://d39ru7awumhhs2.cloudfront.net/${str.replace(/^https:\/\/dropi\.co\//, '').replace(/^\/+/, '')}`;
+  }
+  if (str.startsWith('http://') || str.startsWith('https://')) return str;
+  return `https://d39ru7awumhhs2.cloudfront.net/${str.replace(/^\/+/, '')}`;
+}
+
+/**
  * Resuelve la URL original sin transformar para vistas comparativas (Antes / Después)
  */
 export function getOriginalProductImageUrl(product: {

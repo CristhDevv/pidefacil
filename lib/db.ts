@@ -1188,6 +1188,77 @@ export async function updateProductAdmin(
 }
 
 /**
+ * Guarda el enriquecimiento de un producto (descripción, galería y variaciones)
+ * tanto en Supabase como en SQLite, e invalida la caché en memoria.
+ */
+export async function updateProductEnrichment(
+  id_dropi: number,
+  enrichment: {
+    description: string | null;
+    description_is_empty: number;
+    gallery?: string[] | null;
+    stock_por_variacion?: string | null;
+  }
+): Promise<boolean> {
+  const now = new Date().toISOString();
+
+  // Invalidar caché en memoria para este producto
+  productMemoryCache.delete(id_dropi);
+
+  if (isSupabaseConfigured) {
+    try {
+      const payload: any = {
+        description: enrichment.description,
+        description_is_empty: enrichment.description_is_empty,
+        updated_at: now,
+      };
+      if (enrichment.gallery !== undefined) {
+        payload.gallery = enrichment.gallery;
+      }
+      if (enrichment.stock_por_variacion !== undefined) {
+        payload.stock_por_variacion = enrichment.stock_por_variacion
+          ? JSON.parse(enrichment.stock_por_variacion)
+          : null;
+      }
+
+      await supabaseAdmin
+        .from('products')
+        .update(payload)
+        .eq('id_dropi', id_dropi);
+    } catch (e: any) {
+      console.error('Error actualizando enriquecimiento en Supabase:', e?.message || e);
+    }
+  }
+
+  // Actualización en SQLite local
+  try {
+    const s = getSqliteDb();
+    if (s) {
+      s.prepare(`
+        UPDATE products 
+        SET description = @description,
+            description_is_empty = @description_is_empty,
+            gallery = COALESCE(@gallery, gallery),
+            stock_por_variacion = COALESCE(@stock_por_variacion, stock_por_variacion),
+            updated_at = @updated_at
+        WHERE id_dropi = @id_dropi
+      `).run({
+        id_dropi,
+        description: enrichment.description,
+        description_is_empty: enrichment.description_is_empty,
+        gallery: enrichment.gallery ? JSON.stringify(enrichment.gallery) : null,
+        stock_por_variacion: enrichment.stock_por_variacion || null,
+        updated_at: now,
+      });
+    }
+    return true;
+  } catch (err: any) {
+    console.warn('[DB] Error guardando enriquecimiento en SQLite:', err?.message || err);
+    return false;
+  }
+}
+
+/**
  * Checkpoints persistentes de sincronización
  */
 export function getCheckpoint(mode: string) {

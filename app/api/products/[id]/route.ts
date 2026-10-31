@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getProductById } from '@/lib/db';
 import { calculateDuoPrice } from '@/config/pricing';
 import { normalizeVariations } from '@/lib/variations';
+import { enrichProductJustInTime } from '@/lib/dropi-enricher';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,12 +20,30 @@ export async function GET(
       );
     }
 
-    const p = await getProductById(dropiId);
+    let p = await getProductById(dropiId);
     if (!p) {
       return NextResponse.json(
         { success: false, error: 'Producto no encontrado' },
         { status: 404 }
       );
+    }
+
+    // Enriquecimiento Just-In-Time (al vuelo): si no tiene descripción y no ha sido marcado como vacío en origen
+    if ((!p.description || p.description.trim() === '') && !p.description_is_empty) {
+      try {
+        const enriched = await enrichProductJustInTime(dropiId, p.name);
+        if (enriched) {
+          if (enriched.description) p.description = enriched.description;
+          if (enriched.gallery && enriched.gallery.length > 0) {
+            p.gallery = JSON.stringify(enriched.gallery);
+          }
+          if (enriched.variationsJson) {
+            p.stock_por_variacion = enriched.variationsJson;
+          }
+        }
+      } catch (enrichErr: any) {
+        console.warn(`[PDP JIT] No se pudo enriquecer en tiempo real el producto ${dropiId}:`, enrichErr?.message || enrichErr);
+      }
     }
 
     const duo = calculateDuoPrice(p.sell_price_cop, p.cost_cop);
