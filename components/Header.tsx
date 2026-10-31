@@ -42,6 +42,12 @@ export const Header: React.FC<HeaderProps> = ({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const isFocusedRef = useRef(false);
+
+  // Sincronizar localQuery si cambia searchQuery desde el padre (ej. restaurar desde URL o historial)
+  useEffect(() => {
+    setLocalQuery((prev) => (prev !== searchQuery ? searchQuery : prev));
+  }, [searchQuery]);
 
   // Cerrar menús al hacer click afuera
   useEffect(() => {
@@ -56,6 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
   useEffect(() => {
     const timer = setTimeout(async () => {
       onSearch(localQuery);
@@ -68,7 +75,10 @@ export const Header: React.FC<HeaderProps> = ({
           const json = await res.json();
           if (json.success && json.data) {
             setSuggestions(json.data);
-            setShowDropdown(true);
+            // Solo abrir el dropdown automáticamente si el usuario está interactuando con el input
+            if (isFocusedRef.current) {
+              setShowDropdown(true);
+            }
           }
         } catch (e) {
           console.error('Autocomplete error:', e);
@@ -82,17 +92,6 @@ export const Header: React.FC<HeaderProps> = ({
     return () => clearTimeout(timer);
   }, [localQuery, onSearch]);
 
-  // Cerrar dropdown al hacer click afuera
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const handleClear = () => {
     setLocalQuery('');
     onSearch('');
@@ -105,7 +104,17 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-4xl mx-auto px-4 py-2.5">
         <div className="flex items-center justify-between gap-3 mb-2">
           {/* Logo PideFácil Oficial */}
-          <Link href="/" className="flex items-center gap-2.5 group">
+          <Link
+            href="/"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('pidefacil_last_search');
+              }
+              setLocalQuery('');
+              onSearch('');
+            }}
+            className="flex items-center gap-2.5 group"
+          >
             <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden bg-white shadow-xs border border-slate-200/80 group-hover:scale-105 transition-transform flex items-center justify-center">
               <Image
                 src="/icons/icon-192x192.png"
@@ -315,7 +324,11 @@ export const Header: React.FC<HeaderProps> = ({
             type="text"
             value={localQuery}
             onFocus={() => {
+              isFocusedRef.current = true;
               if (suggestions.length > 0) setShowDropdown(true);
+            }}
+            onBlur={() => {
+              isFocusedRef.current = false;
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -346,7 +359,11 @@ export const Header: React.FC<HeaderProps> = ({
                 {suggestions.map((item) => (
                   <Link
                     key={item.id_dropi}
-                    href={`/producto/${item.id_dropi}`}
+                    href={
+                      localQuery.trim()
+                        ? `/producto/${item.id_dropi}?q=${encodeURIComponent(localQuery.trim())}`
+                        : `/producto/${item.id_dropi}`
+                    }
                     onClick={() => setShowDropdown(false)}
                     className="flex items-center gap-3 p-2.5 hover:bg-emerald-50/50 transition group"
                   >

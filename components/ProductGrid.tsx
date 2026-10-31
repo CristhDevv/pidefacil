@@ -39,11 +39,13 @@ export interface ProductSummary {
 interface ProductGridProps {
   products: ProductSummary[];
   isLoading?: boolean;
+  searchQuery?: string;
 }
 
 export const ProductGrid: React.FC<ProductGridProps> = ({
   products,
   isLoading,
+  searchQuery = '',
 }) => {
   const { role, isSeller, isAdmin, pricingMode } = useAuth();
   const [imgErrors, setImgErrors] = useState<Record<number, boolean>>({});
@@ -98,10 +100,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
             ? prod.suggested_price_cop
             : Math.round((prod.sell_price_cop * 1.35) / 1000) * 1000 + 900;
 
+        const productHref = searchQuery?.trim()
+          ? `/producto/${prod.id_dropi}?q=${encodeURIComponent(searchQuery.trim())}`
+          : `/producto/${prod.id_dropi}`;
+
         return (
           <Link
             key={prod.id_dropi}
-            href={`/producto/${prod.id_dropi}`}
+            href={productHref}
             className={`bg-white rounded-2xl p-2.5 border shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:shadow-md transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] select-none group ${
               showRolePricing
                 ? 'border-blue-200/90 hover:border-blue-400 bg-gradient-to-b from-blue-50/20 to-white'
